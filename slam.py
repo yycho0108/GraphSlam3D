@@ -104,6 +104,10 @@ class GraphSlam3(object):
         b = np.concatenate(b, axis=0)
 
         dx = np.matmul(np.linalg.pinv(H), -b)
+        # self._nodes.add(dx) or something
+        # TODO : implement online version, maybe adapt Sebastian Thrun's code related to online slam
+        # where relationships regarding x_{i-1} can be folded into x_{i}
+
         np.save('dx.npy', dx)
 
     def _build(self):
@@ -153,7 +157,7 @@ def main():
 
     max_nodes = n_t + n_l
     slam = GraphSlam3()
-    zs = gen_data(n_t, n_l)
+    zs, zs_gt, (p,q) = gen_data(n_t, n_l)
     slam.run(zs, max_nodes=max_nodes)
 
 if __name__ == "__main__":

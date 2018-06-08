@@ -107,7 +107,7 @@ def gen_data(n_t, n_l, motion_noise=1.0, measurement_noise=1.0):
             # position index, landmark index, relative pose
             obs.append([i, n_t+zi, cat(zp_rel, zq_rel)])
 
-    return obs
+    return obs, zs, (p,q)
 
 def main():
     obs = gen_data(10, 4)
