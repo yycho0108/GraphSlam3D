@@ -35,8 +35,9 @@ def apply_delta(x, dx):
     t, q = x[:3,:], x[3:,:]
     dt, dq_v = dx[:3,:], dx[3:,:]
 
-    t_new = t + dt#qmul(q, dt)
-    q_new = qmul(Tinv(dq_v), q) # TODO : or inverse????
+    t_new = t + qxv(q,dt)#qmul(q, dt)
+    print t_new
+    q_new = qmul(q, Tinv(dq_v)) # TODO : or inverse????
     return t_new.col_join(q_new)
 
 def err(xi, xj, zij):
@@ -98,10 +99,10 @@ def main():
     zij = symbols([e+'_ij_z' for e in x0])
     zij = sm.Matrix(zij)
 
-    eij = err(xi,xj,zij)
+    #eij = err(xi,xj,zij)
 
-    Aij = eij.jacobian(xi)
-    Bij = eij.jacobian(xj)
+    #Aij = eij.jacobian(xi)
+    #Bij = eij.jacobian(xj)
 
     dxi_s = symbols([e+'_i' for e in dx0])
     dxi = sm.Matrix(dxi_s)
@@ -117,8 +118,9 @@ def main():
     Mj = Mj.jacobian(dxj)
     Mj = Mj.subs({e:0 for e in dxj_s})
 
-    #sm.pprint(Mi)
-    #sm.pprint(Mj)
+    sm.pprint(Mi)
+    sm.pprint(Mj)
+    return
 
     print 'Mi'
     sm.pprint(Mi)
