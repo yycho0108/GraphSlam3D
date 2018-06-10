@@ -311,9 +311,31 @@ def Aij2(p0, p1, dp, q0, q1, dq):
     R01 = q2R2(dq)
 
     dRi = dR2Tdq2(q0)
+
+    #zt = np.zeros((3,3))
+    #zt[:2,:2] = R01
+    #zt[:2,2]  = dp
+    #zt[2,2]   = 1.0
+    #zti = np.linalg.pinv(zt)
+    #zti[:2,2] = 0.0
+    #print zti
+
     Aij[:2,:2] = -R01.T.dot(R0.T)
-    Aij[:2,2] = R01.T.dot(dRi.T).dot(p1-p0)
+    Aij[:2,2] = R01.T.dot(dRi.dot(p1-p0))
     Aij[2,2] = -1
+
+    #print '?'
+    #print Aij
+
+    #Aij *= 0.0
+
+    #Aij[:2,:2] = -R0.T
+    #Aij[:2,2]  = dRi.dot(p1-p0)
+    #Aij[2,2] = -1.0
+    #Aij = zti.dot(Aij)
+
+    #print '??'
+    #print Aij
     return Aij
 
 def Bij2(p0, p1, dp, q0, q1, dq):
@@ -321,8 +343,22 @@ def Bij2(p0, p1, dp, q0, q1, dq):
     R0 = q2R2(q0)
     R1 = q2R2(q1)
     R01 = q2R2(dq)
+
+    #zt = np.zeros((3,3))
+    #zt[:2,:2] = q2R2(dq)
+    #zt[:2,2]  = dp
+    #zt[2,2]  = 1.0
+
+    #zti = np.linalg.pinv(zt)
+    #zti[:2,2] = 0.0
+
+    #Bij[:2,:2] = R0.T
+    #Bij[2,2]   = 1.0
+    #Bij = zti.dot(Bij)
+
     Bij[:2,:2] = R01.T.dot(R0.T)
     Bij[2,2] = 1
+
     return Bij
 
 def eij2test(p0, p1, dp, q0, q1, dq):
@@ -360,8 +396,27 @@ def eij2(p0, p1, dp, q0, q1, dq):
     R0 = q2R2(q0)
     R1 = q2R2(q1)
     R01 = q2R2(dq)
+
     eij[:2,0] = R01.T.dot(R0.T.dot(p1-p0)-dp)
     eij[2,0] = hnorm2(q1-q0-dq)
+
+    #zt = np.zeros((3,3))
+    #zt[:2,:2] = q2R2(dq)
+    #zt[:2,2]  = dp
+    #zt[2,2]  = 1.0
+    #zti = np.linalg.pinv(zt)
+
+    #fij = np.zeros((3,3))
+    #fij[:2,:2] = R0.T.dot(R1)
+    #fij[:2,2]  = R0.T.dot(p1-p0)
+    #fij[2,2]   = 1.0
+
+    #eijT = zti.dot(fij)
+    #eij[:2,0] = eijT[:2,2]
+    #eij[2,0]  = np.arctan2(eijT[1,0], eijT[0,0])
+    #eij[2,0]  = hnorm2(eij[2,0])
+    #print eij
+
     return eij
 
 def x2pq2(x):

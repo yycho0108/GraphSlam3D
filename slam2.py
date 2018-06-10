@@ -61,7 +61,7 @@ class GraphSlam2(object):
     def run(self, zs, max_nodes):
         H0 = np.zeros((3,3), dtype=np.float32)
         b0 = np.zeros((3,1), dtype=np.float32)
-        omega = 100.0 * np.eye(3)
+        omega = 1.0 * np.eye(3)
 
         # NOTE : change M() accordingly
 
@@ -95,8 +95,10 @@ class GraphSlam2(object):
                 b[z1]     += Bij.T.dot(omega).dot(eij)#np.matmul(Bij.T, eij)
 
             H[0][0] += np.eye(3)
+            #print np.asarray([[np.abs(np.sum(e))>0 for e in r] for r in H], dtype=np.int32)
 
             H = np.block(H)
+            #print (np.abs(H) > 0).astype(np.int32)
             b = np.concatenate(b, axis=0)
             
             dx = np.matmul(np.linalg.pinv(H), -b)
@@ -107,9 +109,10 @@ class GraphSlam2(object):
             #    print dx2[:5]
 
             dx = np.reshape(dx, [-1,3])
+            #dx[0] *= 0.0
 
             x = [self._nodes[k] for k in sorted(self._nodes.keys())]
-            n_t = 200
+            n_t = 100
 
             with Report('x-raw'):
                 print 'initial pose'
@@ -140,13 +143,13 @@ def main():
     #dz_p = 0.1
     #dz_p = np.deg2rad(10.0)
 
-    s = 0.01 # 1.0 = 1m = 57.2 deg.
-    dx_p = s
+    s = 0.1 # 1.0 = 1m = 57.2 deg.
+    dx_p = 10*s
     dx_q = s
-    dz_p = s
+    dz_p = 10*s
     dz_q = s
 
-    n_t = 200 # timesteps
+    n_t = 100 # timesteps
     n_l = 4 # landmarks
 
     np.set_printoptions(precision=4)
