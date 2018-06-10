@@ -109,7 +109,7 @@ class GraphSlam2(object):
             #    print dx2[:5]
 
             dx = np.reshape(dx, [-1,3])
-            #dx[0] *= 0.0
+            dx[0] *= 0.0
 
             x = [self._nodes[k] for k in sorted(self._nodes.keys())]
             n_t = 100
@@ -138,24 +138,24 @@ class GraphSlam2(object):
         # where relationships regarding x_{i-1} can be folded into x_{i}
 
 def main():
-    s = 0.02 # 1.0 = 1m = 57.2 deg.
+    s = 0.05 # 1.0 = 1m = 57.2 deg.
     dx_p = s
     dx_q = s
     dz_p = s
     dz_q = s
 
     n_t = 100 # timesteps
-    n_l = 4 # landmarks
+    n_l = 20 # landmarks
 
     np.set_printoptions(precision=4)
     with np.errstate(invalid='raise'):
         max_nodes = n_t + n_l
         slam = GraphSlam2()
-        zs, zs_gt, (p,q) = gen_data_2d(n_t, n_l, dx_p, dx_q, dz_p, dz_q)
+        zs, zs_gt, xs = gen_data_2d(n_t, n_l, dx_p, dx_q, dz_p, dz_q)
         slam.run(zs, max_nodes=max_nodes)
 
         print 'final pose'
-        print p, q
+        print xs[-1]
 
         print 'zs_gt'
         for z in zs_gt:

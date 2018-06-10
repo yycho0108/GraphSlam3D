@@ -79,7 +79,7 @@ class GraphSlam3(object):
         # NOTE : change M() accordingly
         c = 1.0
 
-        for it in range(1):
+        for it in range(5):
             H = [[H0.copy() for _ in range(max_nodes)] for _ in range(max_nodes)]
             b = [b0.copy() for _ in range(max_nodes)]
 
@@ -113,7 +113,7 @@ class GraphSlam3(object):
             dx = np.matmul(np.linalg.pinv(H), -b)
             dx = np.reshape(dx, [-1,6])
             #print 'dx0', dx[0]
-            dx[0] *= 0.0
+            #dx[0] *= 0.0
 
             x = [self._nodes[k] for k in sorted(self._nodes.keys())]
 
@@ -161,7 +161,7 @@ def main():
     dz_q = s
 
     n_t = 100 # timesteps
-    n_l = 100 # landmarks
+    n_l = 4 # landmarks
 
     np.set_printoptions(precision=4)
     with np.errstate(invalid='raise'):

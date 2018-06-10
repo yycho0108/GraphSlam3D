@@ -1,6 +1,9 @@
 import numpy as np
 from tf import transformations as tx
 
+from qmath_np_ex import Aij as Aij_alt
+from qmath_np_ex import Bij as Bij_alt
+
 eps = np.finfo(float).eps
 
 mode = 'abs'
@@ -21,9 +24,6 @@ def q2R(q):
     return np.asarray(R, dtype=np.float64)
 
 def qxv(q, v):
-    #R = q2R(q)
-    #vn = R.dot(np.reshape(v, [-1,1]))
-    #return vn[:, 0]
     return q2R(q).dot(v)
 
 def dRqTpdq(q, p):
@@ -196,6 +196,7 @@ def dqnddq_rel(q):
     x,y,z,w = q
     res = [[w,-z,y],[z,w,-x],[-y,x,w],[-x,-y,-z]]
     return np.asarray(res, dtype=np.float64)
+
 def M_rel(p, q):
     M = np.zeros((7,6), dtype=np.float64)
     M[:3,:3] = q2R(q)
@@ -302,6 +303,7 @@ def dqedq2(q1, qe):
 
 def Aij(p0,p1,dp, q0,q1,dq):
     # == d(eij) / d(xi)
+
     A = np.zeros((6,7), dtype=np.float64)
 
     R01 = q2R(dq)
@@ -311,8 +313,13 @@ def Aij(p0,p1,dp, q0,q1,dq):
     Q01 = dqq_l(qinv(dq))
 
     eq = qmul(qinv(dq), qmul(qinv(q0),q1))
-    A[3:,3:] = dTdX(eq).dot(Q01.dot(dqiq_r(q1)))
-    #A[3:,3:] = dTdX(eq).dot(dqedq1(q1,dq))
+    #A[3:,3:] = dTdX(eq).dot(Q01.dot(dqiq_r(q1)))
+    A[3:,3:] = dTdX(eq).dot(dqedq1(q1,dq))
+
+    #A1 = A
+    #A = Aij_alt(p0,p1,dp,q0,q1,dq)
+    #A2 = A
+    #print A1 - A2
 
     Mi = M(p0, q0)
     A = A.dot(Mi)
@@ -347,6 +354,12 @@ def Bij(
     eq = qmul(qinv(dq), qmul(qinv(q0),q1))
     B[3:,3:] = dTdX(eq).dot(Q01.dot(Q12))
     #B[3:,3:] = dTdX(eq).dot(dqedq2(q0, dq))
+    #print 'B1'
+    #print B
+    #B = Bij_alt(p0,p1,dp,q0,q1,dq)
+    #print 'B2'
+    #print B
+
 
     Mj = M(p1, q1)
     B = B.dot(Mj)
