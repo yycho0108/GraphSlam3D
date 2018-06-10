@@ -143,7 +143,7 @@ def main():
     #dz_p = 0.1
     #dz_p = np.deg2rad(10.0)
 
-    s = 0.1 # 1.0 = 1m = 57.2 deg.
+    s = 0.03 # 1.0 = 1m = 57.2 deg.
     dx_p = s
     dx_q = s
     dz_p = s

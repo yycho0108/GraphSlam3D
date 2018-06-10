@@ -138,15 +138,10 @@ class GraphSlam2(object):
         # where relationships regarding x_{i-1} can be folded into x_{i}
 
 def main():
-    #dx_p = 0.1 #
-    #dx_q = np.deg2rad(10.0)
-    #dz_p = 0.1
-    #dz_p = np.deg2rad(10.0)
-
-    s = 0.1 # 1.0 = 1m = 57.2 deg.
-    dx_p = 10*s
+    s = 0.02 # 1.0 = 1m = 57.2 deg.
+    dx_p = s
     dx_q = s
-    dz_p = 10*s
+    dz_p = s
     dz_q = s
 
     n_t = 100 # timesteps
