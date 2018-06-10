@@ -18,7 +18,7 @@ def q2R(q):
     R = [[1 - 2*qy2 - 2*qz2,	2*qx*qy - 2*qz*qw,	2*qx*qz + 2*qy*qw],
             [2*qx*qy + 2*qz*qw,	1 - 2*qx2 - 2*qz2,	2*qy*qz - 2*qx*qw],
             [2*qx*qz - 2*qy*qw,	2*qy*qz + 2*qx*qw,	1 - 2*qx2 - 2*qy2]]
-    return np.asarray(R, dtype=np.float32)
+    return np.asarray(R, dtype=np.float64)
 
 def qxv(q, v):
     #R = q2R(q)
@@ -33,7 +33,7 @@ def dRqTpdq(q, p):
     J = [[2*qy*y + 2*qz*z, -4*qy*x + 2*qx*y - 2*qw*z, -4*qz*x + 2*qw*y + 2*qx*z, 2*qz*y - 2*qy*z],
          [2*qy*x - 4*qx*y + 2*qw*z, 2*qx*x + 2*qz*z, -2*qw*x - 4*qz*y + 2*qy*z, -2*qz*x + 2*qx*z],
          [2*qz*x - 2*qw*y - 4*qx*z, 2*qw*x + 2*qz*y - 4*qy*z, 2*qx*x + 2*qy*y, 2*qy*x - 2*qx*y]]
-    return np.asarray(J, dtype=np.float32)
+    return np.asarray(J, dtype=np.float64)
 
 def dQdq0(q1,q2,q3):
     # q2 = qi
@@ -45,7 +45,7 @@ def dQdq0(q1,q2,q3):
     qx3, qy3, qz3, qw3 = q3
 
     dqq = [[-qw2*qw3-qx2*qx3-qy2*qy3-qz2*qz3,-qx3*qy2+qx2*qy3-qw3*qz2+qw2*qz3,qw3*qy2-qw2*qy3-qx3*qz2+qx2*qz3,qw3*qx2-qw2*qx3+qy3*qz2-qy2*qz3],[qx3*qy2-qx2*qy3+qw3*qz2-qw2*qz3,-qw2*qw3-qx2*qx3-qy2*qy3-qz2*qz3,-qw3*qx2+qw2*qx3-qy3*qz2+qy2*qz3,qw3*qy2-qw2*qy3-qx3*qz2+qx2*qz3],[-qw3*qy2+qw2*qy3+qx3*qz2-qx2*qz3,qw3*qx2-qw2*qx3+qy3*qz2-qy2*qz3,-qw2*qw3-qx2*qx3-qy2*qy3-qz2*qz3,qx3*qy2-qx2*qy3+qw3*qz2-qw2*qz3],[qw3*qx2-qw2*qx3+qy3*qz2-qy2*qz3,qw3*qy2-qw2*qy3-qx3*qz2+qx2*qz3,qx3*qy2-qx2*qy3+qw3*qz2-qw2*qz3,qw2*qw3+qx2*qx3+qy2*qy3+qz2*qz3]]
-    return np.asarray(dqq, dtype=np.float32)
+    return np.asarray(dqq, dtype=np.float64)
 
 def dQdq1(q1, q2, q3):
     # q2 = qi = q0
@@ -61,7 +61,7 @@ def dQdq1(q1, q2, q3):
             [-qx3*qy1 - qx1*qy3 - qw3*qz1 + qw1*qz3, qw1*qw3 + qx1*qx3 - qy1*qy3 + qz1*qz3, qw3*qx1 - qw1*qx3 - qy3*qz1 - qy1*qz3, -qw3*qy1 - qw1*qy3 + qx3*qz1 - qx1*qz3],
             [qw3*qy1 - qw1*qy3 - qx3*qz1 - qx1*qz3, -qw3*qx1 + qw1*qx3 - qy3*qz1 - qy1*qz3, qw1*qw3 + qx1*qx3 + qy1*qy3 - qz1*qz3, -qx3*qy1 + qx1*qy3 - qw3*qz1 - qw1*qz3],
             [qw3*qx1 + qw1*qx3 - qy3*qz1 + qy1*qz3, qw3*qy1 + qw1*qy3 + qx3*qz1 - qx1*qz3, -qx3*qy1 + qx1*qy3 + qw3*qz1 + qw1*qz3, qw1*qw3 - qx1*qx3 - qy1*qy3 - qz1*qz3]]
-    return np.asarray(dqq, dtype=np.float32)
+    return np.asarray(dqq, dtype=np.float64)
 
 # V1 : T(q) = q[:3]
 def T(q):
@@ -70,10 +70,10 @@ def T(q):
 def Tinv(q):
     x,y,z = q
     w = np.sqrt(1.0  - x**2 - y**2 - z**2)
-    return np.asarray([x,y,z,w], dtype=np.float32)
+    return np.asarray([x,y,z,w], dtype=np.float64)
 
 def dTdX(x):
-    return np.eye(3,4, dtype=np.float32)
+    return np.eye(3,4, dtype=np.float64)
 
 # V2 : T(q) = log(q)
 #def sinc(x):
@@ -107,6 +107,39 @@ def dTdX(x):
 #    return q
 #
 #def dTdX(x):
+#    qx,qy,qz,qw = x
+#    #print 'qw', qw
+#    qw = np.clip(qw, -1.0, 1.0)
+#
+#    h  = np.arccos(qw)
+#    nv = np.sqrt(qx**2 + qy**2 + qz**2)
+#    if nv < eps:
+#        return np.zeros((3,4))
+#
+#    s  = np.sqrt(1 - qw**2)
+#    #print 'h', h
+#    #print 'nv', nv
+#    #print 's', s
+#    #print 'x', x
+#
+#    res = [[-((qx**2*h)/(qx**2 + qy**2 + qz**2)**1.5) + 
+#      h/nv,
+#     -((qx*qy*h)/(qx**2 + qy**2 + qz**2)**1.5),
+#     -((qx*qz*h)/(qx**2 + qy**2 + qz**2)**1.5),
+#     -(qx/(s*nv))],
+#    [-((qx*qy*h)/(qx**2 + qy**2 + qz**2)**1.5),
+#     -((qy**2*h)/(qx**2 + qy**2 + qz**2)**1.5) + 
+#      h/nv,
+#     -((qy*qz*h)/(qx**2 + qy**2 + qz**2)**1.5),
+#     -(qy/(s*nv))],
+#    [-((qx*qz*h)/(qx**2 + qy**2 + qz**2)**1.5),
+#     -((qy*qz*h)/(qx**2 + qy**2 + qz**2)**1.5),
+#     -((qz**2*h)/(qx**2 + qy**2 + qz**2)**1.5) + 
+#      h/nv,
+#     -(qz/(s*nv))]]
+#    return np.asarray(res)
+
+#def dTdX(x):
 #    x = np.divide(x, np.linalg.norm(x))
 #    qxi,qyi,qzi,qwi = x
 #
@@ -121,7 +154,7 @@ def dTdX(x):
 #
 #    if qvn < eps:
 #        # TODO : valid?
-#        return np.zeros((3,4), dtype=np.float32)
+#        return np.zeros((3,4), dtype=np.float64)
 #    else:
 #        d = k * qvn 
 #        qvn1_5 = qvn**1.5
@@ -162,9 +195,9 @@ def xadd_abs(x, dx, T=True):
 def dqnddq_rel(q):
     x,y,z,w = q
     res = [[w,-z,y],[z,w,-x],[-y,x,w],[-x,-y,-z]]
-    return np.asarray(res, dtype=np.float32)
+    return np.asarray(res, dtype=np.float64)
 def M_rel(p, q):
-    M = np.zeros((7,6), dtype=np.float32)
+    M = np.zeros((7,6), dtype=np.float64)
     M[:3,:3] = q2R(q)
     M[3:,3:] = dqnddq_rel(q)
     return M
@@ -173,10 +206,10 @@ def M_rel(p, q):
 def dqnddq_abs(q):
     x,y,z,w = q
     res = [[w,z,-y],[-z,w,x],[y,-x,w],[-x,-y,-z]]
-    return np.asarray(res, dtype=np.float32)
+    return np.asarray(res, dtype=np.float64)
 
 def M_abs(p, q):
-    M = np.zeros((7,6), dtype=np.float32)
+    M = np.zeros((7,6), dtype=np.float64)
     M[:3,:3] = np.eye(3)
     M[3:,3:] = dqnddq_abs(q)
     return M
@@ -188,52 +221,163 @@ else:
     M = M_rel
     xadd = xadd_rel
 
-def Aij(
-        p0, p1, dp,
-        q0, q1, dq,
-        ):
+#def Aij(
+#        p0, p1, dp,
+#        q0, q1, dq,
+#        ):
+#    # == d(eij) / d(xi)
+#    A = np.zeros((6,7), dtype=np.float64)
+#    A[:3,:3] = -q2R(q0).T
+#    A[:3,3:] = dRqTpdq(q0, p0)
+#    A[3:,3:] = dTdX(dq).dot(dQdq0(q0, q1, dq))
+#
+#    Mi = M(p0, q0)
+#    A = A.dot(Mi)
+#    return A
+
+def dRqidq(q, p1, p0):
+    x,y,z,w = q
+    x2,y2,z2,w2 = x*2, y*2, z*2, w*2
+    x4,y4,z4,w4 = x*4, y*4, z*4, w*4
+    res = [[[0,-y4,-z4,0],[y2,x2,w2,z2],[z2,-w2,x2,-y2]],
+           [[y2,x2,-w2,-z2],[-x4,0,-z4,0],[w2,z2,y2,x2]],
+           [[z2,w2,x2,y2],[-w2,z2,y2,-x2],[-x4,-y4,0,0]]]
+    res = np.asarray(res)
+    # == (3,3,4)
+    dp = p1 - p0
+    return np.einsum('ijk,j->ik', res, dp)
+
+def dqq_l(q):
+    # == d(q0.q1)/d(q1)
+    x,y,z,w = q
+
+    res = [[w,-z,y,x],
+           [z,w,-x,y],
+           [-y,x,w,z],
+           [-x,-y,-z,w]]
+    return np.asarray(res)
+
+def dqiq_r(q):
+    # == d(q0^{-1}.q1)/d(q0)
+    x,y,z,w = q
+    res = [[w,z,-y,-x],
+            [-z,w,x,-y],
+            [y,-x,w,-z],
+            [-x,-y,-z,-w]]
+    return np.asarray(res)
+
+def dqedq1(q2, qe):
+    qx2,qy2,qz2,qw2 = q2
+    qxe,qye,qze,qwe = qe
+
+    res = [
+            [-(qw2*qwe) - qx2*qxe + qy2*qye + qz2*qze,
+                -(qxe*qy2) - qx2*qye - qwe*qz2 - qw2*qze,qwe*qy2 + qw2*qye - qxe*qz2 - qx2*qze,
+                qwe*qx2 - qw2*qxe - qye*qz2 + qy2*qze],
+            [-(qxe*qy2) - qx2*qye + qwe*qz2 + qw2*qze,
+                -(qw2*qwe) + qx2*qxe - qy2*qye + qz2*qze,
+                -(qwe*qx2) - qw2*qxe - qye*qz2 - qy2*qze,qwe*qy2 - qw2*qye + qxe*qz2 - qx2*qze],
+            [-(qwe*qy2) - qw2*qye - qxe*qz2 - qx2*qze,
+                qwe*qx2 + qw2*qxe - qye*qz2 - qy2*qze,-(qw2*qwe) + qx2*qxe + qy2*qye - qz2*qze,
+                -(qxe*qy2) + qx2*qye + qwe*qz2 - qw2*qze],
+            [qwe*qx2 - qw2*qxe + qye*qz2 - qy2*qze,qwe*qy2 - qw2*qye - qxe*qz2 + qx2*qze,
+                qxe*qy2 - qx2*qye + qwe*qz2 - qw2*qze,
+                qw2*qwe + qx2*qxe + qy2*qye + qz2*qze]]
+    return np.asarray(res)
+
+def dqedq2(q1, qe):
+    qx1,qy1,qz1,qw1 = q1
+    qxe,qye,qze,qwe = qe
+
+    res = [[qw1*qwe - qx1*qxe - qy1*qye - qz1*qze, -(qxe*qy1) + qx1*qye + qwe*qz1 + qw1*qze,
+        -(qwe*qy1) - qw1*qye - qxe*qz1 + qx1*qze, -(qwe*qx1) - qw1*qxe + qye*qz1 - qy1*qze],
+        [qxe*qy1 - qx1*qye - qwe*qz1 - qw1*qze,qw1*qwe - qx1*qxe - qy1*qye - qz1*qze,
+            qwe*qx1 + qw1*qxe - qye*qz1 + qy1*qze,-(qwe*qy1) - qw1*qye - qxe*qz1 + qx1*qze],
+        [qwe*qy1 + qw1*qye + qxe*qz1 - qx1*qze,
+            -(qwe*qx1) - qw1*qxe + qye*qz1 - qy1*qze,qw1*qwe - qx1*qxe - qy1*qye - qz1*qze,
+            qxe*qy1 - qx1*qye - qwe*qz1 - qw1*qze],
+        [qwe*qx1 + qw1*qxe - qye*qz1 + qy1*qze,qwe*qy1 + qw1*qye + qxe*qz1 - qx1*qze,
+            -(qxe*qy1) + qx1*qye + qwe*qz1 + qw1*qze,qw1*qwe - qx1*qxe - qy1*qye - qz1*qze]]
+    return np.asarray(res)
+
+def Aij(p0,p1,dp, q0,q1,dq):
     # == d(eij) / d(xi)
-    A = np.zeros((6,7), dtype=np.float32)
-    A[:3,:3] = -q2R(q0).T
-    A[:3,3:] = dRqTpdq(q0, p0)
-    A[3:,3:] = dTdX(dq).dot(dQdq0(q0, q1, dq))
+    A = np.zeros((6,7), dtype=np.float64)
+
+    R01 = q2R(dq)
+    A[:3,:3] = -R01.T.dot(q2R(q0).T)
+    A[:3,3:] = R01.T.dot(dRqidq(q0, p1, p0))
+
+    Q01 = dqq_l(qinv(dq))
+
+    eq = qmul(qinv(dq), qmul(qinv(q0),q1))
+    A[3:,3:] = dTdX(eq).dot(Q01.dot(dqiq_r(q1)))
+    #A[3:,3:] = dTdX(eq).dot(dqedq1(q1,dq))
 
     Mi = M(p0, q0)
     A = A.dot(Mi)
     return A
+
+#def Bij(
+#        p0, p1, dp,
+#        q0, q1, dq,
+#        ):
+#    # == d(eij) / d(xj)
+#    B = np.zeros((6,7), dtype=np.float64)
+#    B[:3,:3] = q2R(q0).T
+#    B[3:,3:] = dTdX(dq).dot(dQdq1(q0, q1, dq))
+#
+#    Mj = M(p1, q1)
+#    B = B.dot(Mj)
+#    return B
 
 def Bij(
         p0, p1, dp,
         q0, q1, dq,
         ):
     # == d(eij) / d(xj)
-    B = np.zeros((6,7), dtype=np.float32)
-    B[:3,:3] = q2R(q0).T
-    B[3:,3:] = dTdX(dq).dot(dQdq1(q0, q1, dq))
+    R0 = q2R(q0)
+    R01 = q2R(dq)
+
+    B = np.zeros((6,7), dtype=np.float64)
+    B[:3,:3] = R01.T.dot(R0.T)
+
+    Q01 = dqq_l(qinv(dq))
+    Q12 = dqq_l(qinv(q0))
+    eq = qmul(qinv(dq), qmul(qinv(q0),q1))
+    B[3:,3:] = dTdX(eq).dot(Q01.dot(Q12))
+    #B[3:,3:] = dTdX(eq).dot(dqedq2(q0, dq))
 
     Mj = M(p1, q1)
     B = B.dot(Mj)
     return B
 
-def eij(
-        p0, p1, dp,
-        q0, q1, dq,
-        ):
-    # ep = q0^{-1}.(p1-p0) - dp
-    # eq = T(q0^{-1}.q1.dp^{-1})
+#def eij(
+#        p0, p1, dp,
+#        q0, q1, dq,
+#        ):
+#    # ep = q0^{-1}.(p1-p0) - dp
+#    # eq = T(q0^{-1}.q1.dp^{-1})
+#
+#    # estimated dpe
+#    dp_e, dq_e = xrel(p0, q0, p1, q1)
+#
+#    err_p = dp_e - dp
+#    err_q = qmul(dq_e, qinv(dq))
+#    err_q = T(err_q)
+#
+#    #q0i = qinv(q0)
+#    #ep = qxv(q0i, (p1 - p0)) - dp
+#    #eq = T(qmul(q0i, qmul(q1, qinv(dq))))
+#    res = np.concatenate([err_p,err_q], axis=-1)
+#    return np.expand_dims(res, axis=-1) # (6,1)
 
-    # estimated dpe
-    dp_e, dq_e = xrel(p0, q0, p1, q1)
-
-    err_p = dp_e - dp
-    err_q = qmul(dq_e, qinv(dq))
-    err_q = T(err_q)
-
-    #q0i = qinv(q0)
-    #ep = qxv(q0i, (p1 - p0)) - dp
-    #eq = T(qmul(q0i, qmul(q1, qinv(dq))))
-    res = np.concatenate([err_p,err_q], axis=-1)
-    return np.expand_dims(res, axis=-1) # (6,1)
+def eij(p0, p1, dp, q0, q1, dq):
+    dqi = qinv(dq)
+    ep = qxv(dqi, qxv(qinv(q0), p1-p0) - dp)
+    eq = T(qmul(dqi, qmul(qinv(q0), q1)))
+    res = np.concatenate([ep, eq], axis=-1)
+    return np.expand_dims(res, axis=-1)
 
 def x2pq(x):
     p = x[:3]
@@ -305,7 +449,7 @@ def dR2Tdq2(q):
     return np.reshape([-s,c,-c,-s], (2,2))
 
 def Aij2(p0, p1, dp, q0, q1, dq):
-    Aij = np.zeros((3,3), dtype=np.float32)
+    Aij = np.zeros((3,3), dtype=np.float64)
     R0 = q2R2(q0)
     R1 = q2R2(q1)
     R01 = q2R2(dq)
@@ -339,7 +483,7 @@ def Aij2(p0, p1, dp, q0, q1, dq):
     return Aij
 
 def Bij2(p0, p1, dp, q0, q1, dq):
-    Bij = np.zeros((3,3), dtype=np.float32)
+    Bij = np.zeros((3,3), dtype=np.float64)
     R0 = q2R2(q0)
     R1 = q2R2(q1)
     R01 = q2R2(dq)
@@ -362,7 +506,7 @@ def Bij2(p0, p1, dp, q0, q1, dq):
     return Bij
 
 def eij2test(p0, p1, dp, q0, q1, dq):
-    eij = np.zeros((3,1), dtype=np.float32)
+    eij = np.zeros((3,1), dtype=np.float64)
 
     T01 = np.zeros((3,3))
     T0 = np.zeros((3,3))
@@ -392,7 +536,7 @@ def eij2test(p0, p1, dp, q0, q1, dq):
     return eij
 
 def eij2(p0, p1, dp, q0, q1, dq):
-    eij = np.zeros((3,1), dtype=np.float32)
+    eij = np.zeros((3,1), dtype=np.float64)
     R0 = q2R2(q0)
     R1 = q2R2(q1)
     R01 = q2R2(dq)

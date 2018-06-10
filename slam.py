@@ -5,6 +5,7 @@ from tf import transformations as tx
 from gen_data import gen_data
 #from qmath import *
 from utils import qmath_np
+import pickle
 
 eps = np.finfo(float).eps
 
@@ -76,8 +77,9 @@ class GraphSlam3(object):
         b0 = np.zeros((6,1), dtype=np.float32)
 
         # NOTE : change M() accordingly
+        c = 1.0
 
-        for _ in range(1):
+        for it in range(1):
             H = [[H0.copy() for _ in range(max_nodes)] for _ in range(max_nodes)]
             b = [b0.copy() for _ in range(max_nodes)]
 
@@ -96,12 +98,12 @@ class GraphSlam3(object):
                 Aij, Bij, eij = self.add_edge(z, z0, z1)
 
                 # TODO : incorporate measurement uncertainties
-                H[z0][z0] += np.matmul(Aij.T, Aij)
-                H[z0][z1] += np.matmul(Aij.T, Bij)
-                H[z1][z0] += np.matmul(Bij.T, Aij)
-                H[z1][z1] += np.matmul(Bij.T, Bij)
-                b[z0]     += np.matmul(Aij.T, eij)
-                b[z1]     += np.matmul(Bij.T, eij)
+                H[z0][z0] += c * np.matmul(Aij.T, Aij)
+                H[z0][z1] += c * np.matmul(Aij.T, Bij)
+                H[z1][z0] += c * np.matmul(Bij.T, Aij)
+                H[z1][z1] += c * np.matmul(Bij.T, Bij)
+                b[z0]     += c * np.matmul(Aij.T, eij)
+                b[z1]     += c * np.matmul(Bij.T, eij)
 
             H[0][0] += np.eye(6)
 
@@ -110,8 +112,14 @@ class GraphSlam3(object):
             
             dx = np.matmul(np.linalg.pinv(H), -b)
             dx = np.reshape(dx, [-1,6])
+            #print 'dx0', dx[0]
+            #dx[0] *= 0.0
 
             x = [self._nodes[k] for k in sorted(self._nodes.keys())]
+
+            if it == 0:
+                xp = x
+
             n_t = 100
 
             with Report('x-raw'):
@@ -134,6 +142,9 @@ class GraphSlam3(object):
             for i in range(max_nodes):
                 self._nodes[i] = qmath_np.xadd(self._nodes[i], dx[i])
 
+        x = [self._nodes[k] for k in sorted(self._nodes.keys())]
+        return x, xp
+
         # TODO : implement online version, maybe adapt Sebastian Thrun's code related to online slam
         # where relationships regarding x_{i-1} can be folded into x_{i}
 
@@ -143,9 +154,9 @@ def main():
     #dz_p = 0.1
     #dz_p = np.deg2rad(10.0)
 
-    s = 0.03 # 1.0 = 1m = 57.2 deg.
-    dx_p = s
-    dx_q = s
+    s = 0.01 # 1.0 = 1m = 57.2 deg.
+    dx_p = 2 * s
+    dx_q = 2 * s
     dz_p = s
     dz_q = s
 
@@ -156,16 +167,43 @@ def main():
     with np.errstate(invalid='raise'):
         max_nodes = n_t + n_l
         slam = GraphSlam3()
-        zs, zs_gt, (p,q) = gen_data(n_t, n_l, dx_p, dx_q, dz_p, dz_q)
-        slam.run(zs, max_nodes=max_nodes)
+        zs, zs_gt, xs_gt = gen_data(n_t, n_l, dx_p, dx_q, dz_p, dz_q)
+        es, esr = slam.run(zs, max_nodes=max_nodes)
+
+        xs_e = es[:n_t]
+        zs_e = es[-n_l:]
+
+        xsr_e = esr[:n_t]
 
         print 'final pose'
-        print p, q
+        print xs_gt[-1]
 
         print 'zs_gt'
         for z in zs_gt:
             print z
         print '=='
+
+        ps, qs = zip(*xs_gt)
+        zs     = [zs_gt for _ in range(n_t)] # repeat
+        ep, eq = zip(*[qmath_np.x2pq(e) for e in xs_e])
+        rp, rq = zip(*[qmath_np.x2pq(e) for e in xsr_e])
+        ezs    = [qmath_np.x2pq(e) for e in zs_e]
+        ezs    = [ezs for _ in range(n_t)]
+        #rzs    = zs
+
+        #print len(ps)
+        #print len(qs)
+        #print len(zs_gt)
+        #print len(ep)
+        #print len(eq)
+        #print len(ezs)
+        #print len(zs)
+
+        with open('/tmp/data.pkl', 'w+') as f:
+            pickle.dump(zip(*[ps,qs,zs,ep,eq,rp,rq,ezs]), f)
+        
+        #(p,q,zs,ep,eq,ezs,rzs)
+
 
 if __name__ == "__main__":
     main()

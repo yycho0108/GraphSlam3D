@@ -22,6 +22,8 @@ def gen_data(n_t, n_l,
 
     # initial pose, (x0, q0)
     p0, q0 = qmath_np.rt(s=50.0), qmath_np.rq(s=np.pi)
+    #p0 *= 0.0
+
     x0  = cat(p0, q0)
     graph.append([0, 0, x0])
 
@@ -37,7 +39,7 @@ def gen_data(n_t, n_l,
     # === motion parameters ===
     hmax = np.deg2rad(10)
     dwmax = np.deg2rad(1.0)
-    v = 1.0
+    v = 3.0
     # =========================
 
     dq = qmath_np.rq(s=hmax)
@@ -46,8 +48,10 @@ def gen_data(n_t, n_l,
 
     # SPECIAL : add initial pose
     obs.append([0, 0, cat(p0, q0)])
+    xs = []
 
     for i in range(1, n_t):
+        xs.append( (p.copy(), q.copy()) )
         # measure motion x0->x1
         ddq = qmath_np.rq(s=dwmax)
         dq = qmul(ddq, dq)
@@ -88,7 +92,10 @@ def gen_data(n_t, n_l,
             # position index, landmark index, relative pose
             obs.append([i, n_t+zi, cat(zpr, zqr)])
 
-    return obs, zs, (p,q)
+
+    xs.append((p.copy(), q.copy())) # ground-truth motion data
+
+    return obs, zs, xs
 
 def gen_data_2d(n_t, n_l,
         dx_p = 1.0,
@@ -112,6 +119,7 @@ def gen_data_2d(n_t, n_l,
         zs.append([zp, zq])
 
     p, q = p0.copy(), q0.copy()
+    p *= 0.0
     print 'initial'
     print p, q
 
@@ -128,7 +136,11 @@ def gen_data_2d(n_t, n_l,
     # SPECIAL : add initial pose
     obs.append([0, 0, cat(p0, q0)])
 
+    xs = []
+
     for i in range(1, n_t):
+        xs.append((p.copy(), q.copy()))
+
         # measure motion x0->x1
         ddq = qmath_np.rq2(dwmax)
         dq  += ddq
@@ -169,7 +181,9 @@ def gen_data_2d(n_t, n_l,
             # position index, landmark index, relative pose
             obs.append([i, n_t+zi, cat(zpr, zqr)])
 
-    return obs, zs, (p,q)
+    xs.append((p.copy(), q.copy())) # ground-truth motion data
+
+    return obs, zs, xs
 
 def main():
     #obs = gen_data(10, 4)
