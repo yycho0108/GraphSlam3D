@@ -79,7 +79,7 @@ class GraphSlam3(object):
         # NOTE : change M() accordingly
         c = 1.0
 
-        for it in range(5):
+        for it in range(100):
             H = [[H0.copy() for _ in range(max_nodes)] for _ in range(max_nodes)]
             b = [b0.copy() for _ in range(max_nodes)]
 
@@ -112,6 +112,8 @@ class GraphSlam3(object):
             
             dx = np.matmul(np.linalg.pinv(H), -b)
             dx = np.reshape(dx, [-1,6])
+            delta = np.mean(np.square(dx))
+            print('delta', delta) # --> to check for convergence
             #print 'dx0', dx[0]
             #dx[0] *= 0.0
 
@@ -141,6 +143,9 @@ class GraphSlam3(object):
             # update
             for i in range(max_nodes):
                 self._nodes[i] = qmath_np.xadd(self._nodes[i], dx[i])
+
+            if delta < 1e-4:
+                break
 
         x = [self._nodes[k] for k in sorted(self._nodes.keys())]
         return x, xp
