@@ -125,12 +125,13 @@ class GraphSlam3(object):
 
         H00 = block(self._H[:1,:1])
         H01 = block(self._H[:1,1:])
+        H10 = block(self._H[1:,:1])
         H11 = block(self._H[1:,1:])
 
         B00 = block(self._b[:1,:1])
         B10 = block(self._b[1:,:1])
 
-        AtBi = np.matmul(H01.T, np.linalg.pinv(H00))
+        AtBi = np.matmul(H10, np.linalg.pinv(H00))
         XiP  = B10
         #print np.mean(np.abs(self._H))
 
@@ -272,7 +273,7 @@ def main():
         slam = GraphSlam3(n_l)
 
         # V2 : Online Version
-        np.random.seed(0)
+        np.random.seed(166)
         xs, zs, obs = gen_data_stepwise(n_t, n_l, dx_p, dx_q, dz_p, dz_q)
 
         slam.initialize(cat(*xs[0]))
@@ -288,7 +289,7 @@ def main():
         print es[1]
 
         # V1 : Offline Version
-        np.random.seed(0)
+        np.random.seed(166)
         slam._nodes = {}
         zsr, zs, xs = gen_data(n_t, n_l, dx_p, dx_q, dz_p, dz_q)
         es, esr = slam.run(zsr, max_nodes=max_nodes)
