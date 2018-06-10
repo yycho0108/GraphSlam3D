@@ -66,15 +66,15 @@ class GraphSlam3(object):
         # eij = self._eij.subs(sargs)
 
         # convert to np to handle either cases
-        Aij = np.array(Aij).astype(np.float32)
-        Bij = np.array(Bij).astype(np.float32)
-        eij = np.array(eij).astype(np.float32)
+        Aij = np.array(Aij).astype(np.float64)
+        Bij = np.array(Bij).astype(np.float64)
+        eij = np.array(eij).astype(np.float64)
 
         return Aij, Bij, eij
 
     def run(self, zs, max_nodes):
-        H0 = np.zeros((6,6), dtype=np.float32)
-        b0 = np.zeros((6,1), dtype=np.float32)
+        H0 = np.zeros((6,6), dtype=np.float64)
+        b0 = np.zeros((6,1), dtype=np.float64)
 
         # NOTE : change M() accordingly
         c = 1.0
@@ -113,7 +113,7 @@ class GraphSlam3(object):
             dx = np.matmul(np.linalg.pinv(H), -b)
             dx = np.reshape(dx, [-1,6])
             #print 'dx0', dx[0]
-            #dx[0] *= 0.0
+            dx[0] *= 0.0
 
             x = [self._nodes[k] for k in sorted(self._nodes.keys())]
 
@@ -154,14 +154,14 @@ def main():
     #dz_p = 0.1
     #dz_p = np.deg2rad(10.0)
 
-    s = 0.01 # 1.0 = 1m = 57.2 deg.
+    s = 0.05 # 1.0 = 1m = 57.2 deg.
     dx_p = 2 * s
     dx_q = 2 * s
     dz_p = s
     dz_q = s
 
     n_t = 100 # timesteps
-    n_l = 4 # landmarks
+    n_l = 100 # landmarks
 
     np.set_printoptions(precision=4)
     with np.errstate(invalid='raise'):
@@ -183,6 +183,7 @@ def main():
             print z
         print '=='
 
+
         ps, qs = zip(*xs_gt)
         zs     = [zs_gt for _ in range(n_t)] # repeat
         ep, eq = zip(*[qmath_np.x2pq(e) for e in xs_e])
@@ -198,6 +199,7 @@ def main():
         #print len(eq)
         #print len(ezs)
         #print len(zs)
+
 
         with open('/tmp/data.pkl', 'w+') as f:
             pickle.dump(zip(*[ps,qs,zs,ep,eq,rp,rq,ezs]), f)

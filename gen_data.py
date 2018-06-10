@@ -39,7 +39,7 @@ def gen_data(n_t, n_l,
     # === motion parameters ===
     hmax = np.deg2rad(10)
     dwmax = np.deg2rad(1.0)
-    v = 3.0
+    v = 0.5
     # =========================
 
     dq = qmath_np.rq(s=hmax)
@@ -126,7 +126,7 @@ def gen_data_2d(n_t, n_l,
     # === motion parameters ===
     hmax = np.deg2rad(10)
     dwmax = np.deg2rad(1.0)
-    v = 1.0
+    v = 5.0
     # =========================
 
     dq = np.random.uniform(low=-hmax, high=hmax)

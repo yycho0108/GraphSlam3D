@@ -63,7 +63,7 @@ def dQdq1(q1, q2, q3):
             [qw3*qx1 + qw1*qx3 - qy3*qz1 + qy1*qz3, qw3*qy1 + qw1*qy3 + qx3*qz1 - qx1*qz3, -qx3*qy1 + qx1*qy3 + qw3*qz1 + qw1*qz3, qw1*qw3 - qx1*qx3 - qy1*qy3 - qz1*qz3]]
     return np.asarray(dqq, dtype=np.float64)
 
-# V1 : T(q) = q[:3]
+#V1 : T(q) = q[:3]
 def T(q):
     return q[:3]
 
