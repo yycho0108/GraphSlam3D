@@ -120,7 +120,7 @@ class GraphSlam3(object):
             if it == 0:
                 xp = x
 
-            n_t = 100
+            n_t = 200
 
             with Report('x-raw'):
                 print 'initial pose'
@@ -160,7 +160,7 @@ def main():
     dz_p = s
     dz_q = s
 
-    n_t = 100 # timesteps
+    n_t = 200 # timesteps
     n_l = 4 # landmarks
 
     np.set_printoptions(precision=4)

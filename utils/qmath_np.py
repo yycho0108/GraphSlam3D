@@ -64,114 +64,122 @@ def dQdq1(q1, q2, q3):
     return np.asarray(dqq, dtype=np.float64)
 
 #V1 : T(q) = q[:3]
-def T(q):
-    return q[:3]
-
-def Tinv(q):
-    x,y,z = q
-    w = np.sqrt(1.0  - x**2 - y**2 - z**2)
-    return np.asarray([x,y,z,w], dtype=np.float64)
-
-def dTdX(x):
-    return np.eye(3,4, dtype=np.float64)
+#def T(q):
+#    return q[:3]
+#
+#def Tinv(q):
+#    x,y,z = q
+#    try:
+#        w = np.sqrt(1.0  - x**2 - y**2 - z**2)
+#    except Exception as e:
+#        print e
+#        print x, y, z
+#        print x**2 + y**2 + z**2
+#        raise e
+#    return np.asarray([x,y,z,w], dtype=np.float64)
+#
+#def dTdX(x):
+#    return np.eye(3,4, dtype=np.float64)
 
 # V2 : T(q) = log(q)
-#def sinc(x):
-#    if np.abs(x) < eps:
-#        return 1.0
-#    else:
-#        return np.sin(x) / x
-#def T(q):
-#    """ Quaternion Log """
-#    va, ra = q[:3], q[-1]
-#    ra = np.clip(ra, -1.0, 1.0)
-#    n = np.linalg.norm(va)
-#
-#    if n < eps:
-#        # zero-vector
-#        return va * 0.0
-#    try:
-#        res = (va/n) * (np.arccos(ra))
-#    except Exception as e:
-#        print ra
-#        print e
-#        raise e
-#    return res
-#
-#def Tinv(qv):
-#    """ Rotation-Vector Exponential """
-#    ac = np.linalg.norm(qv, axis=-1) # == ac
-#    ra = np.cos(ac)
-#    va = sinc(ac) * qv # handles ac==0
-#    q = np.concatenate([va, [ra]], axis=-1)
-#    return q
-#
-#def dTdX(x):
-#    qx,qy,qz,qw = x
-#    #print 'qw', qw
-#    qw = np.clip(qw, -1.0, 1.0)
-#
-#    h  = np.arccos(qw)
-#    nv = np.sqrt(qx**2 + qy**2 + qz**2)
-#    if nv < eps:
-#        return np.zeros((3,4))
-#
-#    s  = np.sqrt(1 - qw**2)
-#    #print 'h', h
-#    #print 'nv', nv
-#    #print 's', s
-#    #print 'x', x
-#
-#    res = [[-((qx**2*h)/(qx**2 + qy**2 + qz**2)**1.5) + 
-#      h/nv,
-#     -((qx*qy*h)/(qx**2 + qy**2 + qz**2)**1.5),
-#     -((qx*qz*h)/(qx**2 + qy**2 + qz**2)**1.5),
-#     -(qx/(s*nv))],
-#    [-((qx*qy*h)/(qx**2 + qy**2 + qz**2)**1.5),
-#     -((qy**2*h)/(qx**2 + qy**2 + qz**2)**1.5) + 
-#      h/nv,
-#     -((qy*qz*h)/(qx**2 + qy**2 + qz**2)**1.5),
-#     -(qy/(s*nv))],
-#    [-((qx*qz*h)/(qx**2 + qy**2 + qz**2)**1.5),
-#     -((qy*qz*h)/(qx**2 + qy**2 + qz**2)**1.5),
-#     -((qz**2*h)/(qx**2 + qy**2 + qz**2)**1.5) + 
-#      h/nv,
-#     -(qz/(s*nv))]]
-#    return np.asarray(res)
+def sinc(x):
+    if np.abs(x) < eps:
+        return 1.0
+    else:
+        return np.sin(x) / x
+def T(q):
+    """ Quaternion Log """
+    va, ra = q[:3], q[-1]
+    ra = np.clip(ra, -1.0, 1.0)
+    n = np.linalg.norm(va)
 
-#def dTdX(x):
-#    x = np.divide(x, np.linalg.norm(x))
-#    qxi,qyi,qzi,qwi = x
-#
-#    # prevent minor numerical issues
-#    # qwi = np.clip(qwi, -1.0, 1.0)
-#
-#    h = np.arccos(qwi)
-#
-#    k = (1 - qwi**2)
-#
-#    qvn = np.sqrt(qxi**2 + qyi**2 + qzi**2)
-#
-#    if qvn < eps:
-#        # TODO : valid?
-#        return np.zeros((3,4), dtype=np.float64)
-#    else:
-#        d = k * qvn 
-#        qvn1_5 = qvn**1.5
-#        res = [
-#                [((qyi**2 + qzi**2)*h)/qvn1_5,
-#                    ((qxi*qyi*h)/qvn1_5),
-#                    ((qxi*qzi*h)/qvn1_5),
-#                    (qxi/d)],
-#                [((qxi*qyi*h)/qvn1_5),
-#                    ((qxi**2 + qzi**2)*h)/qvn1_5,
-#                    ((qyi*qzi*h)/qvn1_5),
-#                    (qyi/d)],
-#                [((qxi*qzi*h)/qvn1_5),
-#                    ((qyi*qzi*h)/qvn1_5),
-#                    ((qxi**2 + qyi**2)*h)/qvn1_5,
-#                    (qzi/d)]]
-#        return np.asarray(res)
+    if n < eps:
+        # zero-vector
+        return va * 0.0
+    try:
+        res = (va/n) * (np.arccos(ra))
+    except Exception as e:
+        print ra
+        print e
+        raise e
+    return res
+
+def Tinv(qv):
+    """ Rotation-Vector Exponential """
+    ac = np.linalg.norm(qv, axis=-1) # == ac
+    ra = np.cos(ac)
+    va = sinc(ac) * qv # handles ac==0
+    q = np.concatenate([va, [ra]], axis=-1)
+    return q
+
+def dTdX(x):
+    qx,qy,qz,qw = x
+    #print 'qw', qw
+    qw = np.clip(qw, -1.0, 1.0)
+
+    h  = np.arccos(qw)
+    nv = np.sqrt(qx**2 + qy**2 + qz**2)
+    nv_1_5 = nv ** 1.5
+    s  = np.sqrt(1 - qw**2)
+
+    if nv < eps or s < eps:
+        return np.zeros((3,4))
+    #print 'h', h
+    #print 'nv', nv
+    #print 's', s
+    #print 'x', x
+
+    res = [
+            [-((qx**2*h)/(nv_1_5)) + 
+                h/nv,
+                -((qx*qy*h)/(nv_1_5)),
+                -((qx*qz*h)/(nv_1_5)),
+                -(qx/(s*nv))],
+            [-((qx*qy*h)/(nv_1_5)),
+                -((qy**2*h)/(nv_1_5)) + 
+                h/nv,
+                -((qy*qz*h)/(nv_1_5)),
+                -(qy/(s*nv))],
+            [-((qx*qz*h)/(nv_1_5)),
+                -((qy*qz*h)/(nv_1_5)),
+                -((qz**2*h)/(nv_1_5)) + 
+                h/nv,
+                -(qz/(s*nv))]]
+    return np.asarray(res)
+# 
+# def dTdX(x):
+#     x = np.divide(x, np.linalg.norm(x))
+#     qxi,qyi,qzi,qwi = x
+# 
+#     # prevent minor numerical issues
+#     # qwi = np.clip(qwi, -1.0, 1.0)
+# 
+#     h = np.arccos(qwi)
+# 
+#     k = (1 - qwi**2)
+# 
+#     qvn = np.sqrt(qxi**2 + qyi**2 + qzi**2)
+# 
+#     if qvn < eps:
+#         # TODO : valid?
+#         return np.zeros((3,4), dtype=np.float64)
+#     else:
+#         d = k * qvn 
+#         qvn1_5 = qvn**1.5
+#         res = [
+#                 [((qyi**2 + qzi**2)*h)/qvn1_5,
+#                     ((qxi*qyi*h)/qvn1_5),
+#                     ((qxi*qzi*h)/qvn1_5),
+#                     (qxi/d)],
+#                 [((qxi*qyi*h)/qvn1_5),
+#                     ((qxi**2 + qzi**2)*h)/qvn1_5,
+#                     ((qyi*qzi*h)/qvn1_5),
+#                     (qyi/d)],
+#                 [((qxi*qzi*h)/qvn1_5),
+#                     ((qyi*qzi*h)/qvn1_5),
+#                     ((qxi**2 + qyi**2)*h)/qvn1_5,
+#                     (qzi/d)]]
+#         return np.asarray(res)
 
 def xadd_rel(x, dx, T=True):
     """ apply dx to x in relative frames """
