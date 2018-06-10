@@ -21,6 +21,9 @@ def q2R(q):
     return np.asarray(R, dtype=np.float32)
 
 def qxv(q, v):
+    #R = q2R(q)
+    #vn = R.dot(np.reshape(v, [-1,1]))
+    #return vn[:, 0]
     return q2R(q).dot(v)
 
 def dRqTpdq(q, p):
@@ -142,7 +145,7 @@ def xadd_rel(x, dx, T=True):
     p, q = x2pq(x)
     dp, dq = x2pq(dx)
     dq = Tinv(dq) if T else dq
-    p_n = p + q2R(q).dot(dp)
+    p_n = p + qxv(q, dp)
     q_n = qmul(q, dq)
     return pq2x(p_n, q_n)
 
@@ -265,6 +268,118 @@ def xabs(p0, q0, p1, q1):
     qn = qmul(q0, q1)
     return pn, qn
 
+# 2D versions ...
+
+def hnorm2(h):
+    return ((h + np.pi) % (2*np.pi)) - np.pi
+
+def q2R2(q):
+    q = q[0]
+    R = np.asarray([
+        [np.cos(q), -np.sin(q)],
+        [np.sin(q), np.cos(q)]])
+    return R
+
+def rt2(s=1.0):
+    return np.random.uniform(-s, s, size=2)
+
+def rq2(s=np.pi):
+    return np.random.uniform(-s, s, size=1)
+
+def xrel2(p0, q0, p1, q1):
+    dp = p1 - p0
+    dpr = q2R2(-q0).dot(dp)
+    dqr = hnorm2(q1 - q0)
+    return dpr, dqr
+    #xv = [np.cos(q0), np.sin(q0)]
+    #yv = [np.cos(q0+np.pi/2), np.sin(q0+np.pi/2)]
+    #dxr = np.dot(xv, dp)
+    #dyr = np.dot(yv, dp)
+    ## dpr = R(q0).T.dp
+    #dq = q1 - q0
+    #dq = np.arctan2(np.sin(dq), np.cos(dq))
+    #return [dxr,dyr], [dq]
+
+def dR2Tdq2(q):
+    c, s = np.cos(q), np.sin(q)
+    return np.reshape([-s,c,-c,-s], (2,2))
+
+def Aij2(p0, p1, dp, q0, q1, dq):
+    Aij = np.zeros((3,3), dtype=np.float32)
+    R0 = q2R2(q0)
+    R1 = q2R2(q1)
+    R01 = q2R2(dq)
+
+    dRi = dR2Tdq2(q0)
+    Aij[:2,:2] = -R01.T.dot(R0.T)
+    Aij[:2,2] = R01.T.dot(dRi.T).dot(p1-p0)
+    Aij[2,2] = -1
+    return Aij
+
+def Bij2(p0, p1, dp, q0, q1, dq):
+    Bij = np.zeros((3,3), dtype=np.float32)
+    R0 = q2R2(q0)
+    R1 = q2R2(q1)
+    R01 = q2R2(dq)
+    Bij[:2,:2] = R01.T.dot(R0.T)
+    Bij[2,2] = 1
+    return Bij
+
+def eij2test(p0, p1, dp, q0, q1, dq):
+    eij = np.zeros((3,1), dtype=np.float32)
+
+    T01 = np.zeros((3,3))
+    T0 = np.zeros((3,3))
+    T1 = np.zeros((3,3))
+
+    T0[:2,:2] = q2R2(q0)
+    T0[:2,2] = p0
+    T0[2,2] = 1
+
+    T01[:2,:2] = q2R2(dq)
+    T01[:2,2]  = dp
+    T01[2,2] = 1
+
+    T1[:2,:2] = q2R2(q1)
+    T1[:2,2] = p1
+    T1[2,2] = 1
+
+    inv = np.linalg.pinv
+
+    #print np.dot( inv(T01), inv(T0))
+    #print inv(T01).dot(inv(T0))
+
+    Terr = (inv(T01).dot(inv(T0))).dot(T1)
+    #Terr = np.dot(np.dot(inv(T01), inv(T0)), T1)
+    eij[:2, 0] = Terr[:2, 2]
+    eij[2]     = np.arctan2(Terr[1,0], Terr[0,0])
+    return eij
+
+def eij2(p0, p1, dp, q0, q1, dq):
+    eij = np.zeros((3,1), dtype=np.float32)
+    R0 = q2R2(q0)
+    R1 = q2R2(q1)
+    R01 = q2R2(dq)
+    eij[:2,0] = R01.T.dot(R0.T.dot(p1-p0)-dp)
+    eij[2,0] = hnorm2(q1-q0-dq)
+    return eij
+
+def x2pq2(x):
+    return x[:2], x[2:]
+
+def xadd_rel2(x, dx, T=True):
+    dxa = q2R2(x[-1:]).dot(dx[:2])
+    xn = x[:2] + dxa
+    qn = hnorm2(x[-1:] + dx[-1:])
+    xn = np.concatenate([xn,qn], axis=-1)
+    return xn
+
+def xadd_abs2(x, dx, T=True):
+    xn = x+dx
+    xn[2] = hnorm2(xn[2])
+    return xn
+
+xadd2 = xadd_abs2
 def main():
     p0 = rt()
     p1 = rt()
@@ -275,10 +390,10 @@ def main():
     print 'q0', q0
     print 'q0-bf', Tinv(T(q0))
 
-    p01_z = q2R(q0).T.dot(p1-p0)
+    p01_z = qxv(q0, p1-p0)
     q01_z = qmul(qinv(q0), q1)
 
-    dp = q2R(q0).T.dot(p1-p0) - p01_z
+    dp = qxv(q0, p1-p0) - p01_z
     dq = qmul(qmul(qinv(q0),q1),qinv(q01_z))
     print dp, dq
 

@@ -1,8 +1,9 @@
 import numpy as np
 import sympy as sm
+import scipy.linalg
 from tf import transformations as tx
 
-from gen_data import gen_data
+from gen_data import gen_data_2d
 #from qmath import *
 from utils import qmath_np
 
@@ -24,7 +25,7 @@ class Report():
         print '-' * 8 + ' '*len(self._title) + '-' * 8
         print ''
 
-class GraphSlam3(object):
+class GraphSlam2(object):
     def __init__(self):
         #syms, Aij, Bij, eij = self._build()
         #self._syms = syms
@@ -47,42 +48,32 @@ class GraphSlam3(object):
         n = self._nodes
 
         # numpy version
-        p0, q0 = qmath_np.x2pq(n[i0])
-        p1, q1 = qmath_np.x2pq(n[i1])
-        dp, dq = qmath_np.x2pq(x)
+        p0, q0 = qmath_np.x2pq2(n[i0])
+        p1, q1 = qmath_np.x2pq2(n[i1])
+        dp, dq = qmath_np.x2pq2(x)
 
-        Aij = qmath_np.Aij(p0, p1, dp, q0, q1, dq)
-        Bij = qmath_np.Bij(p0, p1, dp, q0, q1, dq)
-        eij = qmath_np.eij(p0, p1, dp, q0, q1, dq)
-
-        # sympy version
-        # values = (n[i0], n[i1], x)
-        # sargs = {}
-        # for (ks, vs) in zip(self._syms, values):
-        #     sargs.update({k:v for k,v in zip(ks,vs)})
-        # Aij = self._Aij.subs(sargs)
-        # Bij = self._Bij.subs(sargs)
-        # eij = self._eij.subs(sargs)
-
-        # convert to np to handle either cases
-        Aij = np.array(Aij).astype(np.float32)
-        Bij = np.array(Bij).astype(np.float32)
-        eij = np.array(eij).astype(np.float32)
+        Aij = qmath_np.Aij2(p0, p1, dp, q0, q1, dq)
+        Bij = qmath_np.Bij2(p0, p1, dp, q0, q1, dq)
+        eij = qmath_np.eij2(p0, p1, dp, q0, q1, dq)
 
         return Aij, Bij, eij
 
     def run(self, zs, max_nodes):
-        H0 = np.zeros((6,6), dtype=np.float32)
-        b0 = np.zeros((6,1), dtype=np.float32)
+        H0 = np.zeros((3,3), dtype=np.float32)
+        b0 = np.zeros((3,1), dtype=np.float32)
+        omega = 100.0 * np.eye(3)
 
         # NOTE : change M() accordingly
+
+        # start with initial guess
+        #for xi, x in enumerate(xs):
+        #    self._nodes[i] = x
 
         for _ in range(1):
             H = [[H0.copy() for _ in range(max_nodes)] for _ in range(max_nodes)]
             b = [b0.copy() for _ in range(max_nodes)]
 
             for (z0, z1, z) in zs:
-
                 if z0 not in self._nodes:
                     # very first position, encoded with (z0 == z1)
                     assert(z0 == z1)
@@ -91,28 +82,34 @@ class GraphSlam3(object):
 
                 if z1 not in self._nodes:
                     # add initial guess
-                    self._nodes[z1] = qmath_np.xadd_rel(self._nodes[z0], z, T=False)
+                    self._nodes[z1] = qmath_np.xadd_rel2(self._nodes[z0], z, T=False)
 
                 Aij, Bij, eij = self.add_edge(z, z0, z1)
 
                 # TODO : incorporate measurement uncertainties
-                H[z0][z0] += np.matmul(Aij.T, Aij)
-                H[z0][z1] += np.matmul(Aij.T, Bij)
-                H[z1][z0] += np.matmul(Bij.T, Aij)
-                H[z1][z1] += np.matmul(Bij.T, Bij)
-                b[z0]     += np.matmul(Aij.T, eij)
-                b[z1]     += np.matmul(Bij.T, eij)
+                H[z0][z0] += Aij.T.dot(omega).dot(Aij)
+                H[z0][z1] += Aij.T.dot(omega).dot(Bij)#np.matmul(Aij.T, Bij)
+                H[z1][z0] += Bij.T.dot(omega).dot(Aij)#np.matmul(Bij.T, Aij)
+                H[z1][z1] += Bij.T.dot(omega).dot(Bij)#np.matmul(Bij.T, Bij)
+                b[z0]     += Aij.T.dot(omega).dot(eij)#np.matmul(Aij.T, eij)
+                b[z1]     += Bij.T.dot(omega).dot(eij)#np.matmul(Bij.T, eij)
 
-            H[0][0] += np.eye(6)
+            H[0][0] += np.eye(3)
 
             H = np.block(H)
             b = np.concatenate(b, axis=0)
             
             dx = np.matmul(np.linalg.pinv(H), -b)
-            dx = np.reshape(dx, [-1,6])
+            #dx = scipy.linalg.solve(H, -b)
+
+            #with Report('dx'):
+            #    print dx[:5]
+            #    print dx2[:5]
+
+            dx = np.reshape(dx, [-1,3])
 
             x = [self._nodes[k] for k in sorted(self._nodes.keys())]
-            n_t = 100
+            n_t = 200
 
             with Report('x-raw'):
                 print 'initial pose'
@@ -124,15 +121,15 @@ class GraphSlam3(object):
 
             with Report('x-est'):
                 print 'initial pose'
-                print qmath_np.xadd(x[0], dx[0])
+                print qmath_np.xadd2(x[0], dx[0])
                 print 'final pose'
-                print qmath_np.xadd(x[n_t-1], dx[n_t-1])
+                print qmath_np.xadd2(x[n_t-1], dx[n_t-1])
                 print 'last landmark'
-                print qmath_np.xadd(x[-1], dx[-1])
+                print qmath_np.xadd2(x[-1], dx[-1])
 
             # update
             for i in range(max_nodes):
-                self._nodes[i] = qmath_np.xadd(self._nodes[i], dx[i])
+                self._nodes[i] = qmath_np.xadd2(self._nodes[i], dx[i])
 
         # TODO : implement online version, maybe adapt Sebastian Thrun's code related to online slam
         # where relationships regarding x_{i-1} can be folded into x_{i}
@@ -143,20 +140,20 @@ def main():
     #dz_p = 0.1
     #dz_p = np.deg2rad(10.0)
 
-    s = 0.1 # 1.0 = 1m = 57.2 deg.
+    s = 0.01 # 1.0 = 1m = 57.2 deg.
     dx_p = s
     dx_q = s
     dz_p = s
     dz_q = s
 
-    n_t = 100 # timesteps
+    n_t = 200 # timesteps
     n_l = 4 # landmarks
 
     np.set_printoptions(precision=4)
     with np.errstate(invalid='raise'):
         max_nodes = n_t + n_l
-        slam = GraphSlam3()
-        zs, zs_gt, (p,q) = gen_data(n_t, n_l, dx_p, dx_q, dz_p, dz_q)
+        slam = GraphSlam2()
+        zs, zs_gt, (p,q) = gen_data_2d(n_t, n_l, dx_p, dx_q, dz_p, dz_q)
         slam.run(zs, max_nodes=max_nodes)
 
         print 'final pose'
