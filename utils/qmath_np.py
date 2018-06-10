@@ -3,6 +3,8 @@ from tf import transformations as tx
 
 eps = np.finfo(float).eps
 
+mode = 'abs'
+
 def qinv(q):
     qx,qy,qz,qw = q
     return np.asarray([-qx,-qy,-qz,qw])
@@ -71,6 +73,11 @@ def dTdX(x):
     return np.eye(3,4, dtype=np.float32)
 
 # V2 : T(q) = log(q)
+#def sinc(x):
+#    if np.abs(x) < eps:
+#        return 1.0
+#    else:
+#        return np.sin(x) / x
 #def T(q):
 #    """ Quaternion Log """
 #    va, ra = q[:3], q[-1]
@@ -88,12 +95,6 @@ def dTdX(x):
 #        raise e
 #    return res
 #
-#def sinc(x):
-#    if np.abs(x) < eps:
-#        return 1.0
-#    else:
-#        return np.sin(x) / x
-#
 #def Tinv(qv):
 #    """ Rotation-Vector Exponential """
 #    ac = np.linalg.norm(qv, axis=-1) # == ac
@@ -103,9 +104,11 @@ def dTdX(x):
 #    return q
 #
 #def dTdX(x):
+#    x = np.divide(x, np.linalg.norm(x))
 #    qxi,qyi,qzi,qwi = x
 #
-#    qwi = np.clip(qwi, -1.0, 1.0) # prevent minor numerical issues
+#    # prevent minor numerical issues
+#    # qwi = np.clip(qwi, -1.0, 1.0)
 #
 #    h = np.arccos(qwi)
 #
@@ -134,17 +137,53 @@ def dTdX(x):
 #                    (qzi/d)]]
 #        return np.asarray(res)
 
-def dqnddq(q):
+def xadd_rel(x, dx, T=True):
+    """ apply dx to x in relative frames """
+    p, q = x2pq(x)
+    dp, dq = x2pq(dx)
+    dq = Tinv(dq) if T else dq
+    p_n = p + q2R(q).dot(dp)
+    q_n = qmul(q, dq)
+    return pq2x(p_n, q_n)
+
+def xadd_abs(x, dx, T=True):
+    """ apply dx to x in absolute frames """
+    p, q = x2pq(x)
+    dp, dq = x2pq(dx)
+    dq = Tinv(dq) if T else dq
+    p_n = p + dp
+    q_n = qmul(dq, q)
+    return pq2x(p_n, q_n)
+
+## x+dx, v1 : relative addition
+def dqnddq_rel(q):
     x,y,z,w = q
     res = [[w,-z,y],[z,w,-x],[-y,x,w],[-x,-y,-z]]
     return np.asarray(res, dtype=np.float32)
-
-def M(p, q):
-    # TODO : maybe wrong right now
+def M_rel(p, q):
     M = np.zeros((7,6), dtype=np.float32)
     M[:3,:3] = q2R(q)
-    M[3:,3:] = dqnddq(q)
+    M[3:,3:] = dqnddq_rel(q)
     return M
+
+# x+dx, v2 : absolute addition
+def dqnddq_abs(q):
+    x,y,z,w = q
+    res = [[w,z,-y],[-z,w,x],[y,-x,w],[-x,-y,-z]]
+    return np.asarray(res, dtype=np.float32)
+
+def M_abs(p, q):
+    M = np.zeros((7,6), dtype=np.float32)
+    M[:3,:3] = np.eye(3)
+    M[3:,3:] = dqnddq_abs(q)
+    return M
+
+if mode == 'abs':
+    M = M_abs
+    xadd = xadd_abs
+else:
+    M = M_rel
+    xadd = xadd_rel
 
 def Aij(
         p0, p1, dp,
@@ -180,9 +219,17 @@ def eij(
     # ep = q0^{-1}.(p1-p0) - dp
     # eq = T(q0^{-1}.q1.dp^{-1})
 
-    ep = qxv(qinv(q0), (p1 - p0)) - dp
-    eq = T(qmul(qinv(q0), qmul(q1, qinv(dq))))
-    res = np.concatenate([ep,eq], axis=-1)
+    # estimated dpe
+    dp_e, dq_e = xrel(p0, q0, p1, q1)
+
+    err_p = dp_e - dp
+    err_q = qmul(dq_e, qinv(dq))
+    err_q = T(err_q)
+
+    #q0i = qinv(q0)
+    #ep = qxv(q0i, (p1 - p0)) - dp
+    #eq = T(qmul(q0i, qmul(q1, qinv(dq))))
+    res = np.concatenate([err_p,err_q], axis=-1)
     return np.expand_dims(res, axis=-1) # (6,1)
 
 def x2pq(x):
@@ -193,29 +240,23 @@ def x2pq(x):
 def pq2x(p, q):
     return np.concatenate([p,q], axis=-1)
 
-def xadd(x, dx, T=True):
-    p, q = x2pq(x)
-    dp, dq = x2pq(dx)
-    dq = Tinv(dq) if T else dq
-    p_n = p + q2R(q).dot(dp)
-    q_n = qmul(q, dq)
-    return pq2x(p_n, q_n)
 
-def rq():
-    """ random quaternion """
-    ax = np.random.uniform(-1.0,1.0,size=3)
-    ax /= np.linalg.norm(ax)
-    h = np.random.uniform(-np.pi,np.pi)
-    return tx.quaternion_about_axis(h,ax)
-
-def rt():
+def rt(s=1.0):
     """ random position """
-    return np.random.uniform(-1.0, 1.0, size=3)
+    return np.random.uniform(-s, s, size=3)
+
+def rq(s=np.pi):
+    """ random quaternion """
+    ax = rt()
+    ax /= np.linalg.norm(ax)
+    h = np.random.uniform(-s, s)
+    return tx.quaternion_about_axis(h,ax)
 
 def xrel(p0, q0, p1, q1):
     """ convert absolute frames (p1,q1) to relative frames """
-    pn = qxv(qinv(q0), p1 - p0)
-    qn = qmul(qinv(q0), q1)
+    q0i = qinv(q0)
+    pn = qxv(q0i, p1 - p0)
+    qn = qmul(q0i, q1)
     return pn, qn
 
 def xabs(p0, q0, p1, q1):
