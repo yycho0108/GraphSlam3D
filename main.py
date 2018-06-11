@@ -44,7 +44,7 @@ def main():
     n_l = 4 # landmarks
 
     seed = np.random.randint(1e5)
-    gen  = DataGenerator(n_t=n_t, n_l=n_l)
+    gen  = DataGenerator(n_t=n_t, n_l=n_l, scale=100.0)
 
     np.set_printoptions(precision=4)
     with np.errstate(invalid='raise'):
