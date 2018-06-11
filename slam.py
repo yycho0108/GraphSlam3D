@@ -21,6 +21,7 @@ def cat(a,b):
     return np.concatenate([a,b], axis=-1)
 
 class Report():
+    """ Provides separation between print calls"""
     def __init__(self, name):
         self._name = name
         self._title = ' {} '.format(self._name)
@@ -32,6 +33,20 @@ class Report():
     def __exit__(self, *args):
         print '-' * 8 + ' '*len(self._title) + '-' * 8
         print ''
+
+class Print1(object):
+    """ Print something once at iteration n. """
+    def __init__(self, n=0):
+        self._i = 0
+        self._n = n
+    def __call__(self, *args):
+        if (self._i == self._n):
+            print(args)
+        self._i += 1
+
+p1 = Print1(n = 50)
+p2 = Print1(n = 50)
+p3 = Print1(n = 50)
 
 def block(ar):
     """ Convert Block Matrix to Dense Matrix """
@@ -71,20 +86,19 @@ class GraphSlam3(object):
         return Aij, Bij, eij
 
     def initialize(self, x0):
-        n = 2 + self._n_l
+        n = 2 + self._n_l # [x0,x1,l0...ln]
         self._H = np.zeros((n,n,6,6), dtype=np.float64)
         self._b = np.zeros((n,1,6,1), dtype=np.float64)
         self._H[0,0] = np.eye(6)
-        #self._nodes[0] = np.asarray([0,0,0,0,0,0,1])
         self._nodes[0] = x0
 
-        # TODO : check if this is valid vv
+        # TODO : Are the below initializations necessary?
         #p, q = qmath_np.x2pq(x0)
         #x = np.concatenate([p,qmath_np.T(q)], axis=-1)
         #self._b[0,0,:,0] = x
 
     def step(self, x=None, zs=None):
-        """ Online Version, does not work """
+        """ Online Version """
         c = 1.0
 
         # " expand "
@@ -95,14 +109,16 @@ class GraphSlam3(object):
         # apply motion updates first
         # TODO : check if this is even valid
         self._nodes[1] = qmath_np.xadd_rel(self._nodes[0], x, T=False)
-        Aij, Bij, eij = self.add_edge(x, 0, 1)
 
-        self._H[0,0] += c * np.matmul(Aij.T, Aij)
-        self._H[0,1] += c * np.matmul(Aij.T, Bij)
-        self._H[1,0] += c * np.matmul(Bij.T, Aij)
-        self._H[1,1] += c * np.matmul(Bij.T, Bij)
-        self._b[0]   += c * np.matmul(Aij.T, eij)
-        self._b[1]   += c * np.matmul(Bij.T, eij)
+        # unnecessary (redundant) since error is already based on
+        # the above specified relative motion
+        # Aij, Bij, eij = self.add_edge(x, 0, 1)
+        # self._H[0,0] += c * np.matmul(Aij.T, Aij)
+        # self._H[0,1] += c * np.matmul(Aij.T, Bij)
+        # self._H[1,0] += c * np.matmul(Bij.T, Aij)
+        # self._H[1,1] += c * np.matmul(Bij.T, Bij)
+        # self._b[0]   += c * np.matmul(Aij.T, eij)
+        # self._b[1]   += c * np.matmul(Bij.T, eij)
 
         # H and b are organized as (X0, X1, L0, X1, ...)
         # Such that H[0,..] pertains to X0, and so on.
@@ -113,7 +129,8 @@ class GraphSlam3(object):
                 # initial guess
                 self._nodes[z1] = qmath_np.xadd_rel(
                         self._nodes[z0], z, T=False)
-                #print self._nodes[z1]
+                # no need to compute deltas for initial guesses
+                # (will be zero) 
                 continue
             Aij, Bij, eij = self.add_edge(z, z0, z1) # considered observed @ 1
             self._H[z0,z0] += c * np.matmul(Aij.T, Aij)
@@ -136,16 +153,22 @@ class GraphSlam3(object):
         #print np.mean(np.abs(self._H))
 
         # fold previous information into new matrix
-        H = H11 + np.matmul(AtBi, H01) # TODO : ??????????????????? Why does this work?
+
+        # TODO : ??????????????????? Why does this work?
+        H = H11 + np.matmul(AtBi, H01)
         B = B10 - np.matmul(AtBi, B00)
 
-        dx = np.matmul(np.linalg.pinv(H), -B)
+        #dx = np.matmul(np.linalg.pinv(H), -B)
+        dx = np.linalg.lstsq(H,-B, rcond=None)[0]
         dx = np.reshape(dx, [-1,6]) # [x1, l0, ... ln]
         for i in range(1, 2+self._n_l):
-            self._nodes[i] = qmath_np.xadd(self._nodes[i], dx[i-1])
+            if i in self._nodes:
+                self._nodes[i] = qmath_np.xadd(self._nodes[i], dx[i-1])
 
-        #dx2 = np.matmul(np.linalg.pinv(block(self._H)), -block(self._b))
+        ##dx2 = np.matmul(np.linalg.pinv(block(self._H)), -block(self._b))
+        #dx2 = np.linalg.lstsq(block(self._H), -block(self._b), rcond=None)[0]
         #dx2 = np.reshape(dx2, [-1,6])
+
         ##print 'dx2', dx2[1:]
         #for i in range(0, 2+self._n_l):
         #    self._nodes[i] = qmath_np.xadd(self._nodes[i], dx2[i])
@@ -205,7 +228,8 @@ class GraphSlam3(object):
             H = np.block(H)
             b = np.concatenate(b, axis=0)
             # opt 1
-            dx = np.matmul(np.linalg.pinv(H), -b)
+            #dx = np.matmul(np.linalg.pinv(H), -b)
+            dx = np.linalg.lstsq(H,-b, rcond=None)[0]
 
             # opt 2
             #Hi = scipy.sparse.csr_matrix(H)
@@ -220,24 +244,6 @@ class GraphSlam3(object):
 
             if it == 0:
                 xp = x
-
-            n_t = 2
-
-            #with Report('x-raw'):
-            #    print 'initial pose'
-            #    print x[0]
-            #    print 'final pose'
-            #    print x[n_t-1]
-            #    print 'last landmark'
-            #    print x[-1]
-
-            #with Report('x-est'):
-            #    print 'initial pose'
-            #    print qmath_np.xadd(x[0], dx[0])
-            #    print 'final pose'
-            #    print qmath_np.xadd(x[n_t-1], dx[n_t-1])
-            #    print 'last landmark'
-            #    print qmath_np.xadd(x[-1], dx[-1])
 
             # update
             for i in range(max_nodes):
@@ -263,9 +269,12 @@ def main():
     dx_q = 2 * s
     dz_p = s
     dz_q = s
+    p_obs = 0.4 # probability of observation
 
     n_t = 100 # timesteps
-    n_l = 20 # landmarks
+    n_l = 4 # landmarks
+
+    seed = np.random.randint(1e5)
 
     np.set_printoptions(precision=4)
     with np.errstate(invalid='raise'):
@@ -273,8 +282,16 @@ def main():
         slam = GraphSlam3(n_l)
 
         # V2 : Online Version
-        np.random.seed(166)
-        xs, zs, obs = gen_data_stepwise(n_t, n_l, dx_p, dx_q, dz_p, dz_q)
+        np.random.seed(seed)
+        xs, zs, obs = gen_data_stepwise(n_t, n_l, dx_p, dx_q, dz_p, dz_q,
+                p_obs = p_obs
+                )
+
+        with Report('Ground Truth'):
+            print 'final pose'
+            print xs[-1]
+            print 'landmarks'
+            print np.asarray(zs)
 
         slam.initialize(cat(*xs[0]))
         x_raw = cat(*xs[0])
@@ -282,32 +299,32 @@ def main():
             es = slam.step(dx, z)
             x_raw = qmath_np.xadd_rel(x_raw, dx, T=False)
 
-        print 'final pose (raw)'
-        print x_raw
+        with Report('Raw Results'):
+            print 'final pose'
+            print x_raw
+            print 'landmarks'
+            print '[Not available at this time]'
 
-        print 'final pose (online)'
-        print es[1]
+        with Report('Online'):
+            print 'final pose'
+            print es[1]
+            print 'landmarks'
+            print np.asarray(es[2:])
 
         # V1 : Offline Version
-        np.random.seed(166)
+        np.random.seed(seed)
         slam._nodes = {}
-        zsr, zs, xs = gen_data(n_t, n_l, dx_p, dx_q, dz_p, dz_q)
+        zsr, zs, xs = gen_data(n_t, n_l, dx_p, dx_q, dz_p, dz_q,
+                p_obs = p_obs
+                )
         es, esr = slam.run(zsr, max_nodes=max_nodes)
 
-        print 'final pose (offline)'
-        print es[n_t-1]
+        with Report('Offline'):
+            print 'final pose'
+            print es[n_t-1]
+            print 'landmarks'
+            print np.asarray(es[-n_l:])
 
-        xs_e = es[:n_t]
-        zs_e = es[-n_l:]
-
-        #xsr_e = esr[:n_t]
-
-        print 'final pose (ground truth)'
-        print xs[-1]
-
-        print 'zs Ground Truth'
-        for z in zs:
-            print z
         print '=='
 
         #print np.asarray(xs_e)

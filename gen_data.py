@@ -16,7 +16,8 @@ def gen_data(n_t, n_l,
         dx_p = 1.0,
         dx_q = 1.0,
         dz_p = 1.0,
-        dz_q = 1.0
+        dz_q = 1.0,
+        p_obs = 0.0
         ):    
     # initial pose, (x0, q0)
     p0, q0 = qmath_np.rt(s=50.0), qmath_np.rq(s=np.pi)
@@ -29,8 +30,6 @@ def gen_data(n_t, n_l,
         zs.append([zp, zq])
 
     p, q = p0.copy(), q0.copy()
-    print 'initial pose'
-    print p, q
 
     # === motion parameters ===
     hmax = np.deg2rad(10)
@@ -74,6 +73,8 @@ def gen_data(n_t, n_l,
 
         # measure landmarks @ x1
         for zi, (zp,zq) in enumerate(zs):
+            if np.random.random() > p_obs:
+                continue
             zp_n = np.random.normal(loc=zp, scale=dz_p)
             zdq  = qmath_np.rq(s=dz_q)
             zq_n = qmul(zdq, zq)
@@ -114,9 +115,6 @@ def gen_data_2d(n_t, n_l,
         zs.append([zp, zq])
 
     p, q = p0.copy(), q0.copy()
-    p *= 0.0
-    print 'initial'
-    print p, q
 
     # === motion parameters ===
     hmax = np.deg2rad(10)
@@ -184,7 +182,8 @@ def gen_data_stepwise(n_t, n_l,
         dx_p = 1.0,
         dx_q = 1.0,
         dz_p = 1.0,
-        dz_q = 1.0
+        dz_q = 1.0,
+        p_obs= 1.0
         ):    
     """
     returns (x0, n_t*[x,zs])
@@ -201,8 +200,6 @@ def gen_data_stepwise(n_t, n_l,
         zs.append([zp, zq])
 
     p, q = p0.copy(), q0.copy()
-    print 'initial pose'
-    print p, q
 
     # === motion parameters ===
     hmax = np.deg2rad(10)
@@ -242,6 +239,8 @@ def gen_data_stepwise(n_t, n_l,
         # measure landmarks @ x1
         obs_z = []
         for zi, (zp,zq) in enumerate(zs):
+            if np.random.random() > p_obs:
+                continue
             zp_n = np.random.normal(loc=zp, scale=dz_p)
             zdq  = qmath_np.rq(s=dz_q)
             zq_n = qmul(zdq, zq)
