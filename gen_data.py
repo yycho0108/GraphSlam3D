@@ -12,86 +12,111 @@ eps = np.finfo(float).eps
 def cat(a,b):
     return np.concatenate([a,b], axis=-1)
 
-def gen_data(n_t, n_l,
-        dx_p = 1.0,
-        dx_q = 1.0,
-        dz_p = 1.0,
-        dz_q = 1.0,
-        p_obs = 0.0
-        ):    
-    # initial pose, (x0, q0)
-    p0, q0 = qmath_np.rt(s=50.0), qmath_np.rq(s=np.pi)
-    #p0 *= 0.0
-    x0  = cat(p0, q0)
+class DataGenerator(object):
+    """ Note : Is not actually a python generator. """
 
-    zs = []
-    for zi in range(n_l):
-        zp, zq = qmath_np.rt(s=50.0), qmath_np.rq(s=np.pi)
-        zs.append([zp, zq])
+    def __init__(self, n_t, n_l, scale=50.0):
+        self._n_t = n_t
+        self._n_l = n_l
+        self._scale = scale
 
-    p, q = p0.copy(), q0.copy()
+        self._v = 1.0
+        self._dwmax = np.deg2rad(1.0)
 
-    # === motion parameters ===
-    hmax = np.deg2rad(10)
-    dwmax = np.deg2rad(1.0)
-    v = 1.0
-    # =========================
+    def reset(self):
+        # initial pose
+        p = qmath_np.rt(s=self._scale)
+        q = qmath_np.rq(s=np.pi)
 
-    dq = qmath_np.rq(s=hmax)
+        # TODO : configurable motion parameters
+        w = qmath_np.rq(s=np.deg2rad(10))
 
-    obs = []
+        # initial landmarks
+        zs = []
+        for zi in range(self._n_l):
+            zp = qmath_np.rt(s=self._scale)
+            zq = qmath_np.rq(s=np.pi)
+            zs.append([zp,zq])
 
-    # SPECIAL : add initial pose
-    obs.append([0, 0, cat(p0, q0)])
-    xs = []
+        return p, q, w, zs
 
-    for i in range(1, n_t):
-        xs.append( (p.copy(), q.copy()) )
-        # measure motion x0->x1
-        ddq = qmath_np.rq(s=dwmax)
-        dq = qmul(ddq, dq)
+    def __call__(self,
+            dx_p  = 1.0, # noise params
+            dx_q  = 1.0,
+            dz_p  = 1.0,
+            dz_q  = 1.0,
+            p_obs = 1.0,
+            stepwise=True,
+            seed = None
+            ):
+        """
+        Returns The Following:
 
-        # position; assume forward (x-axis) motion
-        uv = qxv(q, [1,0,0])
-        dp = v * uv
-        
-        # merge ...
-        dp_n = np.random.normal(loc=dp, scale=dx_p)
-        ddq_n  = qmath_np.rq(s=dx_q)
-        dq_n = qmul(ddq_n, dq) # dq here is a global rotation.
+        - Ground Truth Trajectory
+        - Ground Truth Landmark Location
+        - Pose Update Observations
+        - Raw Landmark Observations
 
-        # compute motion updates + observation
-        p1 = p + dp_n
-        q1 = qmul(dq_n, q)
+        """
+        if seed is not None:
+            np.random.seed(seed)
 
-        dpr, dqr = qmath_np.xrel(p, q, p1, q1)
-        obs.append([i-1, i, cat(dpr, dqr)])
+        p,q,w,zs = self.reset()
+        v = self._v
 
-        # apply motion updates
-        p = p + dp
-        q = qmul(dq, q)
+        xs = [] # ground truth trajectory
+        dxs = [] # Pose Update Observations
+        obs = [] # Raw Landmark Observations
+        # TODO : configurable motion parameters
 
-        # measure landmarks @ x1
-        for zi, (zp,zq) in enumerate(zs):
-            if np.random.random() > p_obs:
-                continue
-            zp_n = np.random.normal(loc=zp, scale=dz_p)
-            zdq  = qmath_np.rq(s=dz_q)
-            zq_n = qmul(zdq, zq)
+        for i in range(1, self._n_t):
+            xs.append( (p.copy(), q.copy()) )
 
-            zpr, zqr = qmath_np.xrel(p, q, zp_n, zq_n)
+            # compute motion ...
+            dw  = qmath_np.rq(s=self._dwmax)
+            w   = qmul(dw, w)
+            uv  = qxv(q, [1,0,0])
+            dp  = v * uv
 
-            #print 'obs'
-            #print zp, zq
-            #print qmath_np.x2pq(qmath_np.xadd_rel(cat(p, q), cat(zpr, zqr), T=False))
-            #print '=='
+            # add noise ...
+            dp_n = np.random.normal(loc=dp, scale=dx_p)
+            dw_n = qmath_np.rq(s=dx_q)
+            w_n  = qmul(dw_n, w)
 
-            # position index, landmark index, relative pose
-            obs.append([i, n_t+zi, cat(zpr, zqr)])
+            # noisy motion observation
+            p1 = p + dp_n
+            q1 = qmul(w_n, q)
 
-    xs.append((p.copy(), q.copy())) # ground-truth motion data
+            dpr, dqr = qmath_np.xrel(p, q, p1, q1)
 
-    return obs, zs, xs
+            if not stepwise:
+                obs.append([i-1, i, cat(dpr,dqr)])
+
+            # ~= xadd_abs
+            p = p + dp
+            q = qmul(w, q)
+
+            obs_z = []
+            for zi, (zp,zq) in enumerate(zs):
+                if np.random.random() > p_obs:
+                    continue
+                zp_n = np.random.normal(loc=zp, scale=dz_p)
+                zdq  = qmath_np.rq(s=dz_q)
+                zq_n = qmul(zdq, zq)
+                zpr, zqr = qmath_np.xrel(p, q, zp_n, zq_n)
+
+                if stepwise:
+                    obs_z.append([1, 2+zi, cat(zpr,zqr)])
+                else:
+                    obs.append([i, self._n_t+zi, cat(zpr,zqr)])
+
+            if stepwise:
+                obs_i = [cat(dpr,dqr), obs_z]
+                obs.append(obs_i)
+
+        xs.append((p.copy(), q.copy()))
+
+        return xs, zs, obs
 
 def gen_data_2d(n_t, n_l,
         dx_p = 1.0,
@@ -176,94 +201,14 @@ def gen_data_2d(n_t, n_l,
 
     xs.append((p.copy(), q.copy())) # ground-truth motion data
 
+    # TODO : below is confusing, fix later to fit api, etc.
+
     return obs, zs, xs
 
-def gen_data_stepwise(n_t, n_l,
-        dx_p = 1.0,
-        dx_q = 1.0,
-        dz_p = 1.0,
-        dz_q = 1.0,
-        p_obs= 1.0
-        ):    
-    """
-    returns (x0, n_t*[x,zs])
-    """
-
-    # initial pose, (x0, q0)
-    p0, q0 = qmath_np.rt(s=50.0), qmath_np.rq(s=np.pi)
-    #p0 *= 0.0
-    x0 = cat(p0, q0)
-
-    zs = []
-    for zi in range(n_l):
-        zp, zq = qmath_np.rt(s=50.0), qmath_np.rq(s=np.pi)
-        zs.append([zp, zq])
-
-    p, q = p0.copy(), q0.copy()
-
-    # === motion parameters ===
-    hmax = np.deg2rad(10)
-    dwmax = np.deg2rad(1.0)
-    v = 1.0
-    # =========================
-
-    dq = qmath_np.rq(s=hmax)
-
-    xs  = []
-    obs = []
-    for i in range(1, n_t):
-        xs.append((p.copy(), q.copy()))
-        # measure motion x0->x1
-        ddq = qmath_np.rq(s=dwmax)
-        dq = qmul(ddq, dq)
-
-        # position; assume forward (x-axis) motion
-        uv = qxv(q, [1,0,0])
-        dp = v * uv
-        
-        # merge ...
-        dp_n = np.random.normal(loc=dp, scale=dx_p)
-        ddq_n  = qmath_np.rq(s=dx_q)
-        dq_n = qmul(ddq_n, dq) # dq here is a global rotation.
-
-        # compute motion updates + observation
-        p1 = p + dp_n
-        q1 = qmul(dq_n, q)
-
-        dpr, dqr = qmath_np.xrel(p, q, p1, q1)
-
-        # apply motion updates
-        p = p + dp
-        q = qmul(dq, q)
-
-        # measure landmarks @ x1
-        obs_z = []
-        for zi, (zp,zq) in enumerate(zs):
-            if np.random.random() > p_obs:
-                continue
-            zp_n = np.random.normal(loc=zp, scale=dz_p)
-            zdq  = qmath_np.rq(s=dz_q)
-            zq_n = qmul(zdq, zq)
-
-            zpr, zqr = qmath_np.xrel(p, q, zp_n, zq_n)
-
-            #print 'obs'
-            #print zp, zq
-            #print qmath_np.x2pq(qmath_np.xadd_rel(cat(p, q), cat(zpr, zqr), T=False))
-            #print '=='
-
-            # position index, landmark index, relative pose
-            obs_z.append([1, 2+zi, cat(zpr, zqr)])
-        obs_i = [cat(dpr,dqr), obs_z]
-        obs.append(obs_i)
-
-    xs.append((p.copy(), q.copy()))
-
-    return xs, zs, obs 
-
 def main():
-    #obs = gen_data(10, 4)
     obs = gen_data_2d(10, 4)
+    gen = DataGenerator(10,4)
+    xs, zs, obs = gen()
     print obs
 
 if __name__ == "__main__":

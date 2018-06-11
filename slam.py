@@ -1,4 +1,5 @@
 """
+GraphSlam 3D Implementation.
 """
 import numpy as np
 from utils import qmath_np
@@ -109,7 +110,6 @@ class GraphSlam3(object):
 
         AtBi = np.matmul(H10, np.linalg.pinv(H00))
         XiP  = B10
-        #print np.mean(np.abs(self._H))
 
         # fold previous information into new matrix
 
@@ -153,27 +153,21 @@ class GraphSlam3(object):
         x = [self._nodes[k] for k in sorted(self._nodes.keys())]
         return x
 
-    def run(self, zs, max_nodes):
+    def run(self, zs, max_nodes, n_iter=10):
         """ Offline version, works. """
         H0 = np.zeros((6,6), dtype=np.float64)
         b0 = np.zeros((6,1), dtype=np.float64)
 
-        c = 1.0
+        c = 1.0 # TODO : incorporate measurement uncertainties
 
-        for it in range(100):
+        for it in range(n_iter): # iterate 10 times for convergence
             H = [[H0.copy() for _ in range(max_nodes)] for _ in range(max_nodes)]
             b = [b0.copy() for _ in range(max_nodes)]
 
             for (z0, z1, z) in zs:
 
-                if z0 not in self._nodes:
-                    # very first position, encoded with (z0 == z1)
-                    assert(z0 == z1)
-                    self._nodes[z0] = z
-                    continue
-
                 if z1 not in self._nodes:
-                    # add initial guess
+                    # add initial guess to node
                     self._nodes[z1] = qmath_np.xadd_rel(self._nodes[z0], z, T=False)
 
                 Aij, Bij, eij = self.add_edge(z, z0, z1)
@@ -187,32 +181,24 @@ class GraphSlam3(object):
                 b[z1]     += c * np.matmul(Bij.T, eij)
 
             H[0][0] += np.eye(6)
-
             H = np.block(H)
             b = np.concatenate(b, axis=0)
 
-            # opt 1
+            # solve ...
             dx = np.linalg.lstsq(H,-b, rcond=None)[0]
-
             dx = np.reshape(dx, [-1,6])
-            delta = np.mean(np.square(dx))
-            #print 'dx0', dx[0]
-            #dx[0] *= 0.0
-
-            x = [self._nodes[k] for k in sorted(self._nodes.keys())]
-
-            if it == 0:
-                xp = x
 
             # update
             for i in range(max_nodes):
                 self._nodes[i] = qmath_np.xadd(self._nodes[i], dx[i])
 
+            # check convergence
+            delta = np.mean(np.square(dx))
             if delta < 1e-4:
                 break
 
         x = [self._nodes[k] for k in sorted(self._nodes.keys())]
-        return x, xp
+        return x
 
         # TODO : implement online version, maybe adapt Sebastian Thrun's code related to online slam
         # where relationships regarding x_{i-1} can be folded into x_{i}

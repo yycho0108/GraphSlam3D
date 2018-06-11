@@ -1,6 +1,6 @@
 import numpy as np
-from gen_data import gen_data
-from gen_data import gen_data_stepwise
+from gen_data import DataGenerator
+
 from utils import qmath_np
 from slam import GraphSlam3
 import pickle
@@ -32,16 +32,7 @@ class Print1(object):
             print(args)
         self._i += 1
 
-p1 = Print1(n = 50)
-p2 = Print1(n = 50)
-p3 = Print1(n = 50)
-
 def main():
-    #dx_p = 0.1 #
-    #dx_q = np.deg2rad(10.0)
-    #dz_p = 0.1
-    #dz_p = np.deg2rad(10.0)
-
     s = 0.05 # 1.0 = 1m = 57.2 deg.
     dx_p = 2 * s
     dx_q = 2 * s
@@ -53,6 +44,7 @@ def main():
     n_l = 4 # landmarks
 
     seed = np.random.randint(1e5)
+    gen  = DataGenerator(n_t=n_t, n_l=n_l)
 
     np.set_printoptions(precision=4)
     with np.errstate(invalid='raise'):
@@ -61,9 +53,11 @@ def main():
 
         # V2 : Online Version
         np.random.seed(seed)
-        xs, zs, obs = gen_data_stepwise(n_t, n_l, dx_p, dx_q, dz_p, dz_q,
-                p_obs = p_obs
-                )
+        xs, zs, obs = gen(
+                dx_p,dx_q,dz_p,dz_q,
+                p_obs=p_obs,
+                stepwise=True,
+                seed=seed)
 
         with Report('Ground Truth'):
             print 'final pose'
@@ -71,10 +65,9 @@ def main():
             print 'landmarks'
             print np.asarray(zs)
 
-        slam.initialize(cat(*xs[0]))
+        # compute raw results ...
         x_raw = cat(*xs[0])
         for dx, z in obs:
-            es = slam.step(dx, z)
             x_raw = qmath_np.xadd_rel(x_raw, dx, T=False)
 
         with Report('Raw Results'):
@@ -83,19 +76,29 @@ def main():
             print 'landmarks'
             print '[Not available at this time]'
 
+        # online slam ...
+        slam.initialize(cat(*xs[0]))
+        for dx, z in obs:
+            x_raw = qmath_np.xadd_rel(x_raw, dx, T=False)
+            es = slam.step(dx, z)
+
         with Report('Online'):
             print 'final pose'
             print es[1]
             print 'landmarks'
             print np.asarray(es[2:])
 
-        # V1 : Offline Version
+        # offline slam ...
         np.random.seed(seed)
         slam._nodes = {}
-        zsr, zs, xs = gen_data(n_t, n_l, dx_p, dx_q, dz_p, dz_q,
-                p_obs = p_obs
-                )
-        es, esr = slam.run(zsr, max_nodes=max_nodes)
+        xs, zs, obs = gen(
+                dx_p,dx_q,dz_p,dz_q,
+                p_obs=p_obs,
+                stepwise=False,
+                seed=seed)
+
+        slam.initialize(cat(*xs[0]))
+        es = slam.run(obs, max_nodes=max_nodes)
 
         with Report('Offline'):
             print 'final pose'
