@@ -118,7 +118,8 @@ class GraphSlam3(object):
         H = H11 + np.matmul(AtBi, H01)
         B = B10 - np.matmul(AtBi, B00)
 
-        mI = 10.0 * np.eye(*H.shape) # marquadt
+        mI = 1.0 * np.eye(*H.shape) # marquadt damping
+        # TODO : expose lambda ^^ for configuration
 
         #dx = np.matmul(np.linalg.pinv(H), -B)
         dx = np.linalg.lstsq(H+mI,-B, rcond=None)[0]
