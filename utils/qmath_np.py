@@ -117,36 +117,49 @@ def Tinv(qv):
 def dTdX(x):
     qx,qy,qz,qw = x
     #print 'qw', qw
-    qw = np.clip(qw, -1.0, 1.0)
+    #h  = np.arccos(qw)
+    #nv = np.sqrt(qx**2 + qy**2 + qz**2)
+    #nv_1_5 = nv ** 1.5
 
-    h  = np.arccos(qw)
-    nv = np.sqrt(qx**2 + qy**2 + qz**2)
-    nv_1_5 = nv ** 1.5
+    qw = np.clip(qw, -1.0, 1.0)
+    h = np.arccos(qw)
+    n2 = (qx**2 + qy**2 + qz**2)
     s  = np.sqrt(1 - qw**2)
 
-    if nv < eps or s < eps:
+    if n2 < eps or s < eps:
         return np.zeros((3,4))
-    #print 'h', h
-    #print 'nv', nv
-    #print 's', s
-    #print 'x', x
 
-    res = [
-            [-((qx**2*h)/(nv_1_5)) + 
-                h/nv,
-                -((qx*qy*h)/(nv_1_5)),
-                -((qx*qz*h)/(nv_1_5)),
-                -(qx/(s*nv))],
-            [-((qx*qy*h)/(nv_1_5)),
-                -((qy**2*h)/(nv_1_5)) + 
-                h/nv,
-                -((qy*qz*h)/(nv_1_5)),
-                -(qy/(s*nv))],
-            [-((qx*qz*h)/(nv_1_5)),
-                -((qy*qz*h)/(nv_1_5)),
-                -((qz**2*h)/(nv_1_5)) + 
-                h/nv,
-                -(qz/(s*nv))]]
+    #res = [[h*(n2-qx**2), -h*qx*qy, -h*qx*qz, n2*qx/s],
+    #        [-h*qx*qy, h*(n2-qy**2), -h*qy*qz, n2*qy/s],
+    #        [-h*qx*qz, -h*qy*qz, h*(n2-qz**2), n2*qz/s]]
+    #res = np.divide(res, n2**1.5)
+
+    res = [[n2-qx**2,-qx*qy,-qx*qz,-n2*qx/(h*s)],
+           [-qx*qy,n2-qy**2,-qy*qz,-n2*qy/(h*s)],
+           [-qx*qz,-qy*qz,n2-qz**2,-n2*qz/(h*s)]]
+    res = np.multiply(res, h/n2**1.5)
+
+    #qw = np.clip(qw, -1.0, 1.0)
+    #h = np.arccos(qw)
+    #n2 = (qx**2 + qy**2 + qz**2)
+    #s  = np.sqrt(1 - qw**2)
+
+    #res = [
+    #        [-((qx**2*h)/(nv_1_5)) + 
+    #            h/nv,
+    #            -((qx*qy*h)/(nv_1_5)),
+    #            -((qx*qz*h)/(nv_1_5)),
+    #            -(qx/(s*nv))],
+    #        [-((qx*qy*h)/(nv_1_5)),
+    #            -((qy**2*h)/(nv_1_5)) + 
+    #            h/nv,
+    #            -((qy*qz*h)/(nv_1_5)),
+    #            -(qy/(s*nv))],
+    #        [-((qx*qz*h)/(nv_1_5)),
+    #            -((qy*qz*h)/(nv_1_5)),
+    #            -((qz**2*h)/(nv_1_5)) + 
+    #            h/nv,
+    #            -(qz/(s*nv))]]
     return np.asarray(res)
 
 # 
@@ -326,6 +339,7 @@ def Aij(p0,p1,dp, q0,q1,dq):
     #Q01 = dqq_l(qinv(dq))
     #A[3:,3:] = dTdX(eq).dot(Q01.dot(dqiq_r(q1)))
     A[3:,3:] = dTdX(eq).dot(dqedq1(q1,dq)) # this is correct
+    #A[3:,3:] = dTdX(eq).dot(dQdq0(q0,q1,dq))
 
     #vs1 = Q01.dot(dqiq_r(q1))
     #vs2 = dqedq1(q1,dq)

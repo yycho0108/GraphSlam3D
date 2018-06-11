@@ -271,7 +271,7 @@ def main():
     dz_q = s
     p_obs = 0.5 # probability of observation
 
-    n_t = 1000 # timesteps
+    n_t = 100 # timesteps
     n_l = 4 # landmarks
 
     seed = np.random.randint(1e5)
@@ -312,18 +312,18 @@ def main():
             print np.asarray(es[2:])
 
         # V1 : Offline Version
-        #np.random.seed(seed)
-        #slam._nodes = {}
-        #zsr, zs, xs = gen_data(n_t, n_l, dx_p, dx_q, dz_p, dz_q,
-        #        p_obs = p_obs
-        #        )
-        #es, esr = slam.run(zsr, max_nodes=max_nodes)
+        np.random.seed(seed)
+        slam._nodes = {}
+        zsr, zs, xs = gen_data(n_t, n_l, dx_p, dx_q, dz_p, dz_q,
+                p_obs = p_obs
+                )
+        es, esr = slam.run(zsr, max_nodes=max_nodes)
 
-        #with Report('Offline'):
-        #    print 'final pose'
-        #    print es[n_t-1]
-        #    print 'landmarks'
-        #    print np.asarray(es[-n_l:])
+        with Report('Offline'):
+            print 'final pose'
+            print es[n_t-1]
+            print 'landmarks'
+            print np.asarray(es[-n_l:])
 
         return
 
