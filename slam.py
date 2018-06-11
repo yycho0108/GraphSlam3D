@@ -30,9 +30,11 @@ class GraphSlam3(object):
         p1, q1 = qmath_np.x2pq(n[i1])
         dp, dq = qmath_np.x2pq(x)
 
-        Aij = qmath_np.Aij(p0, p1, dp, q0, q1, dq)
-        Bij = qmath_np.Bij(p0, p1, dp, q0, q1, dq)
-        eij = qmath_np.eij(p0, p1, dp, q0, q1, dq)
+        Aij, Bij, eij = qmath_np.Aij_Bij_eij(p0,p1,dp,q0,q1,dq)
+
+        #Aij = qmath_np.Aij(p0, p1, dp, q0, q1, dq)
+        #Bij = qmath_np.Bij(p0, p1, dp, q0, q1, dq)
+        #eij = qmath_np.eij(p0, p1, dp, q0, q1, dq)
 
         # convert to np to handle either cases
         Aij = np.array(Aij).astype(np.float64)
@@ -114,8 +116,7 @@ class GraphSlam3(object):
 
         # fold previous information into new matrix
 
-        # TODO : ??????????????????? Why does this work?
-        H = H11 + np.matmul(AtBi, H01)
+        H = H11 - np.matmul(AtBi, H01)
         B = B10 - np.matmul(AtBi, B00)
 
         mI = 1.0 * np.eye(*H.shape) # marquadt damping

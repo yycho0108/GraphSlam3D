@@ -358,6 +358,78 @@ def eij(p0, p1, dp, q0, q1, dq):
     res = np.concatenate([ep, eq], axis=-1)
     return np.expand_dims(res, axis=-1)
 
+def dRTdq(q):
+    """ d(R(q).T)/d(q) """
+    x,y,z,w = q
+    x2,y2,z2,w2 = [2*e for e in q]
+    res = [[[0,-y2,-z2,0],[y,x,w,z],[z,-w,x,-y]],
+            [[y,x,-w,-z],[-x2,0,-z2,0],[w,z,y,x]],
+            [[z,w,x,y],[-w,z,y,-x],[-x2,-y2,0,0]]]
+    return np.multiply(res, 2)
+
+def dqidq(q):
+    """ d q^{-1})/d(q) """
+    return np.diag([-1,-1,-1,1])
+
+def ql2Q(q):
+    """
+    4x4 Matrix representing left-multiplied quaternion, such that
+    ql2Q(ql).qr == ql.qr
+    """
+    x,y,z,w = q
+    res = [[w,-z,y,x],[z,w,-x,y],[-y,x,w,z],[-x,-y,-z,w]]
+    return np.asarray(res, dtype=np.float64)
+
+def qr2Q(q):
+    """
+    4x4 Matrix representing right-multiplied quaternion, such that
+    qr2Q(qr).ql == ql.qr
+    """
+    x,y,z,w = q
+    res = [[w,z,-y,x],[-z,w,x,y],[y,-x,w,z],[-x,-y,-z,w]]
+    return np.asarray(res, dtype=np.float64)
+
+
+def Aij_Bij_eij(p0, p1, dp, q0, q1, dq):
+    RqiT = q2R(q0).T
+    A01 = np.einsum('ijk,j->ik', dRTdq(q0), p0-p1)
+    # note p0-p1 due to sign inversion
+
+    dqi = qinv(dq)
+    q0i = qinv(q0)
+
+    # compute error
+    ep = dp - RqiT.dot(p1 - p0)
+    eq = qmul(dqi, qmul(q0i, q1))
+    dTde = dTdX(eq)
+    dQi = ql2Q(dqi)
+
+    A11 = dTde.dot(dQi.dot(qr2Q(q1).dot(dqidq(q0))))
+    B11 = dTde.dot(dQi.dot(ql2Q(q0i)))
+
+    # construct Aij
+    Aij = np.zeros((6,7), dtype=np.float64)
+    Aij[:3,:3] = RqiT
+    Aij[:3,3:] = A01
+    Aij[3:,3:] = A11
+
+    Mi = M(p0, q0)
+    Aij = Aij.dot(Mi)
+
+
+    # construct Bij
+    Bij = np.zeros((6,7), dtype=np.float64)
+    Bij[:3,:3] = -RqiT
+    Bij[3:,3:] = B11
+
+    Mj = M(p1, q1)
+    Bij = Bij.dot(Mj)
+
+    eij = np.concatenate([ep, T(eq)], axis=0)
+    eij = np.expand_dims(eij, axis=1) # --> (6x1)
+
+    return Aij, Bij, eij
+
 def x2pq(x):
     p = x[:3]
     q = x[3:]
