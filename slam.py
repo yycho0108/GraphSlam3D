@@ -118,8 +118,10 @@ class GraphSlam3(object):
         H = H11 + np.matmul(AtBi, H01)
         B = B10 - np.matmul(AtBi, B00)
 
+        mI = 10.0 * np.eye(*H.shape) # marquadt
+
         #dx = np.matmul(np.linalg.pinv(H), -B)
-        dx = np.linalg.lstsq(H,-B, rcond=None)[0]
+        dx = np.linalg.lstsq(H+mI,-B, rcond=None)[0]
         dx = np.reshape(dx, [-1,6]) # [x1, l0, ... ln]
 
         for i in zis:
@@ -185,7 +187,10 @@ class GraphSlam3(object):
             b = block(b)
 
             # solve ...
-            dx = np.linalg.lstsq(H,-b, rcond=None)[0]
+            I = np.eye(6*max_nodes, 6*max_nodes)
+            ld = 0.0
+
+            dx = np.linalg.lstsq(H+I*ld,-b, rcond=None)[0]
             dx = np.reshape(dx, [-1,6])
 
             # update
