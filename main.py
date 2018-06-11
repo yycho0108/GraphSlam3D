@@ -1,128 +1,132 @@
 import numpy as np
-from tf import transformations as tx
+from gen_data import gen_data
+from gen_data import gen_data_stepwise
+from utils import qmath_np
+from slam import GraphSlam3
+import pickle
 
-def x2pq(x):
-    return x[:3], x[3:]
+def cat(a,b):
+    return np.concatenate([a,b], axis=-1)
 
-def pq2x(p, q):
-    return np.concatenate([p,q], axis=-1)
+class Report():
+    """ Provides separation between print calls"""
+    def __init__(self, name):
+        self._name = name
+        self._title = ' {} '.format(self._name)
 
-def qlog(q):
-    """ Quaternion Log """
-    va, ra = q[:3], q[-1]
-    uv = va / np.linalg.norm(va)
-    return uv * np.arccos(ra)
+    def __enter__(self):
+        print ''
+        print '=' * 8 + self._title  + '=' * 8
 
-def qvexp(qv):
-    """ Rotation-Vector Exponential """
-    ac = np.linalg.norm(qv, axis=-1)
-    ra = np.cos(ac)
-    va = (np.sin(ac)/ac) * qv
-    q = np.concatenate([va, [ra]], axis=-1)
-    return q / np.linalg.norm(q)
+    def __exit__(self, *args):
+        print '-' * 8 + ' '*len(self._title) + '-' * 8
+        print ''
 
-def qinv(q):
-    """ Quaternion Inverse (Conjugate, Unit) """
-    # no normalization, assume unit
-    #va, ra = q[:3], q[-1]
-    #return np.concatenate([va, [-ra]], axis=-1)
-    return tx.quaternion_conjugate(q)
+class Print1(object):
+    """ Print something once at iteration n. """
+    def __init__(self, n=0):
+        self._i = 0
+        self._n = n
+    def __call__(self, *args):
+        if (self._i == self._n):
+            print(args)
+        self._i += 1
 
-def qmul(b,a):
-    """ Quaternion Multiply """
-    return tx.quaternion_multiply(b, a)
+p1 = Print1(n = 50)
+p2 = Print1(n = 50)
+p3 = Print1(n = 50)
 
-def qxv(q, v, norm=True):
-    """
-    Multiply vector by a quaternion.
-    (Effectively, a rotation)
+def main():
+    #dx_p = 0.1 #
+    #dx_q = np.deg2rad(10.0)
+    #dz_p = 0.1
+    #dz_p = np.deg2rad(10.0)
 
-    q : xyzw
-    v : xyz
-    """
-    if not norm:
-        s = np.linalg.norm(v)
-        v = v / s # make unit
-    q_v = list(v) + [0]
-    q_c = qinv(q)
-    v = qmul(qmul(q, q_v),q_c)[:-1] # == q.v.q^{-1}
-    if not norm:
-        v = np.multiply(v,s)
-    return v
+    s = 0.05 # 1.0 = 1m = 57.2 deg.
+    dx_p = 2 * s
+    dx_q = 2 * s
+    dz_p = s
+    dz_q = s
+    p_obs = 0.5 # probability of observation
 
-def parametrize(x):
-    p, q = x[:3], x[3:]
-    q /= np.linalg.norm(q)
-    qv = qlog(q)
-    return np.concatenate([p,qv], axis=-1)
+    n_t = 200 # timesteps
+    n_l = 4 # landmarks
 
-def unparametrize(x):
-    p, qv = x[:3], x[3:]
-    q = qvexp(qv)
-    q /= np.linalg.norm(q)
-    return np.concatenate([p,q], axis=-1)
+    seed = np.random.randint(1e5)
 
-def motion_compose(xi, xj):
-    pi, qi = xi[:3], xi[3:]
-    pj, qj = xj[:3], xj[3:]
-    
-    p = pi + qxv(qi,pj)
-    q = qmul(qi, qj)
-    return np.concatenate([p,q], axis=-1)
+    np.set_printoptions(precision=4)
+    with np.errstate(invalid='raise'):
+        max_nodes = n_t + n_l
+        slam = GraphSlam3(n_l)
 
-def xinv(x):
-    # TODO : maybe?
-    p, q = x[:3], x[3:]
-    return np.concatenate([-p, qinv(q)], axis=-1)
+        # V2 : Online Version
+        np.random.seed(seed)
+        xs, zs, obs = gen_data_stepwise(n_t, n_l, dx_p, dx_q, dz_p, dz_q,
+                p_obs = p_obs
+                )
 
-def xadd(xi, dxi):
-    motion_compose(xi, unparametrize(dxi))
+        with Report('Ground Truth'):
+            print 'final pose'
+            print xs[-1]
+            print 'landmarks'
+            print np.asarray(zs)
 
-def error(xi, xj, zij):
-    pi, qi = x2pq(xi)
-    pj, qj = x2pq(xj)
-    pij_z, qij_z = x2pq(zij)
+        slam.initialize(cat(*xs[0]))
+        x_raw = cat(*xs[0])
+        for dx, z in obs:
+            es = slam.step(dx, z)
+            x_raw = qmath_np.xadd_rel(x_raw, dx, T=False)
 
-    est_p = qxv(qinv(qi), pj - pi)
-    est_q = qmul(qinv(qi), qj)
+        with Report('Raw Results'):
+            print 'final pose'
+            print x_raw
+            print 'landmarks'
+            print '[Not available at this time]'
 
-    err_p = est_p - pij_z
-    err_q = 2.0 * (qmul(est_q, qinv(qij_z)))[:3]
-    e1 = np.concatenate((err_p, err_q), axis=-1)
-    e2 = motion_compose(xinv(zij), motion_compose(xinv(xi), xj))
-    print e1
-    print e2[:6]
-    e = e1
-    return e
+        with Report('Online'):
+            print 'final pose'
+            print es[1]
+            print 'landmarks'
+            print np.asarray(es[2:])
 
-    #return parametrize(e)
+        # V1 : Offline Version
+        np.random.seed(seed)
+        slam._nodes = {}
+        zsr, zs, xs = gen_data(n_t, n_l, dx_p, dx_q, dz_p, dz_q,
+                p_obs = p_obs
+                )
+        es, esr = slam.run(zsr, max_nodes=max_nodes)
 
-def random_pose():
-    p = np.random.normal(size=3)
-    ax = np.random.uniform(size=3)
-    ax /= np.linalg.norm(ax)
-    h  = np.random.uniform(low=-np.pi, high=np.pi, size=1)
-    q = tx.quaternion_about_axis(h, ax)
-    return np.concatenate((p,q), axis=-1)
+        with Report('Offline'):
+            print 'final pose'
+            print es[n_t-1]
+            print 'landmarks'
+            print np.asarray(es[-n_l:])
+
+        return
+
+        ps, qs = zip(*xs_gt)
+        zs     = [zs_gt for _ in range(n_t)] # repeat
+        ep, eq = zip(*[qmath_np.x2pq(e) for e in xs_e])
+        rp, rq = zip(*[qmath_np.x2pq(e) for e in xsr_e])
+        ezs    = [qmath_np.x2pq(e) for e in zs_e]
+        ezs    = [ezs for _ in range(n_t)]
+        #rzs    = zs
+
+        #print len(ps)
+        #print len(qs)
+        #print len(zs_gt)
+        #print len(ep)
+        #print len(eq)
+        #print len(ezs)
+        #print len(zs)
 
 
-xi = random_pose()
-xj = random_pose()
+        with open('/tmp/data.pkl', 'w+') as f:
+            pickle.dump(zip(*[ps,qs,zs,ep,eq,rp,rq,ezs]), f)
+        
+        #(p,q,zs,ep,eq,ezs,rzs)
 
-pi,qi = x2pq(xi)
-pj,qj = x2pq(xj)
 
-dp = qxv(qinv(qi), pj - pi)#qxv(qi,pj) - pi
-dq = qmul(qinv(qi), qj)#qmul(qj, qinv(qi))
-# ^^ above are "relative" measurements wrt. frame i
-
-zij = pq2x(dp, dq)
-#zij = random_pose()
-
-#xi = np.concatenate(
-#        ([0,0,0], [0,0,0,1]), axis=-1)
-#xj = np.concatenate(
-#        ([0,0,0], [0,0,0,1]), axis=-1)
-#zij = np.concatenate(
-#        ([0,0,0], [0,0,0,1]), axis=-1)
-error(xi, xj, zij)
+if __name__ == "__main__":
+    main()
