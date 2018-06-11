@@ -4,6 +4,7 @@ from gen_data import DataGenerator
 from utils import qmath_np
 from slam import GraphSlam3
 import pickle
+from matplotlib import pyplot as plt
 
 def cat(a,b):
     return np.concatenate([a,b], axis=-1)
@@ -38,10 +39,10 @@ def main():
     dx_q = 2 * s
     dz_p = s
     dz_q = s
-    p_obs = 0.5 # probability of observation
+    p_obs = 0.25 # probability of observation
 
-    n_t = 200 # timesteps
-    n_l = 4 # landmarks
+    n_t = 500 # timesteps
+    n_l = 32 # landmarks
 
     seed = np.random.randint(1e5)
     gen  = DataGenerator(n_t=n_t, n_l=n_l, scale=100.0)
@@ -66,9 +67,11 @@ def main():
             print np.asarray(zs)
 
         # compute raw results ...
+        xes_raw = []
         x_raw = cat(*xs[0])
         for dx, z in obs:
             x_raw = qmath_np.xadd_rel(x_raw, dx, T=False)
+            xes_raw.append(x_raw.copy())
 
         with Report('Raw Results'):
             print 'final pose'
@@ -76,11 +79,20 @@ def main():
             print 'landmarks'
             print '[Not available at this time]'
 
+        xesr_p, xesr_q = zip(*[x for x in xs[1:]])
+        xeso_p, xeso_q = zip(*[qmath_np.x2pq(x) for x in xes_raw])
+        dp = np.subtract(xesr_p, xeso_p)
+        dq = [qmath_np.T(qmath_np.qmul(q1, qmath_np.qinv(q0))) for (q1,q0) in zip(xesr_q, xeso_q)]
+        delta  = np.concatenate([dp,dq], axis=-1)
+        delta  = np.linalg.norm(delta, axis=-1)
+        plt.plot(delta)
+
         # online slam ...
         slam.initialize(cat(*xs[0]))
+        xes_onl = []
         for dx, z in obs:
-            x_raw = qmath_np.xadd_rel(x_raw, dx, T=False)
             es = slam.step(dx, z)
+            xes_onl.append(es[1].copy())
 
         with Report('Online'):
             print 'final pose'
@@ -88,23 +100,46 @@ def main():
             print 'landmarks'
             print np.asarray(es[2:])
 
+        xesr_p, xesr_q = zip(*[x for x in xs[1:]])
+        xeso_p, xeso_q = zip(*[qmath_np.x2pq(x) for x in xes_onl])
+        dp = np.subtract(xesr_p, xeso_p)
+        dq = [qmath_np.T(qmath_np.qmul(q1, qmath_np.qinv(q0))) for (q1,q0) in zip(xesr_q, xeso_q)]
+        delta  = np.concatenate([dp,dq], axis=-1)
+        delta  = np.linalg.norm(delta, axis=-1)
+        plt.plot(delta)
+
         # offline slam ...
-        np.random.seed(seed)
-        slam._nodes = {}
-        xs, zs, obs = gen(
-                dx_p,dx_q,dz_p,dz_q,
-                p_obs=p_obs,
-                stepwise=False,
-                seed=seed)
+        if n_t < 1000:
+            # try not to do this when matrix will get too big
+            np.random.seed(seed)
+            xs, zs, obs = gen(
+                    dx_p,dx_q,dz_p,dz_q,
+                    p_obs=p_obs,
+                    stepwise=False,
+                    seed=seed)
 
-        slam.initialize(cat(*xs[0]))
-        es = slam.run(obs, max_nodes=max_nodes)
+            slam._nodes = {}
+            slam.initialize(cat(*xs[0]))
+            xes_off = slam.run(obs, max_nodes=max_nodes, n_iter=1)
 
-        with Report('Offline'):
-            print 'final pose'
-            print es[n_t-1]
-            print 'landmarks'
-            print np.asarray(es[-n_l:])
+            with Report('Offline'):
+                print 'final pose'
+                print xes_off[n_t-1]
+                print 'landmarks'
+                print np.asarray(es[-n_l:])
+
+            xesr_p, xesr_q = zip(*[x for x in xs[1:]])
+            xeso_p, xeso_q = zip(*[qmath_np.x2pq(x) for x in xes_off[1:n_t]])
+            dp = np.subtract(xesr_p, xeso_p)
+            dq = [qmath_np.T(qmath_np.qmul(q1, qmath_np.qinv(q0))) for (q1,q0) in zip(xesr_q, xeso_q)]
+            delta  = np.concatenate([dp,dq], axis=-1)
+            delta  = np.linalg.norm(delta, axis=-1)
+
+            plt.plot(delta)
+
+        plt.legend(['raw','slam-on', 'slam-off'])
+        plt.title('Estimated Error Over Time')
+        plt.show()
 
         return
 

@@ -115,13 +115,10 @@ def Tinv(qv):
     return q
 
 def dTdX(x):
+    x = x / np.linalg.norm(x)
     qx,qy,qz,qw = x
-    #print 'qw', qw
-    #h  = np.arccos(qw)
-    #nv = np.sqrt(qx**2 + qy**2 + qz**2)
-    #nv_1_5 = nv ** 1.5
 
-    qw = np.clip(qw, -1.0, 1.0)
+    #qw = np.clip(qw, -1.0, 1.0)
     h = np.arccos(qw)
     n2 = (qx**2 + qy**2 + qz**2)
     s  = np.sqrt(1 - qw**2)
@@ -129,73 +126,12 @@ def dTdX(x):
     if n2 < eps or s < eps:
         return np.zeros((3,4))
 
-    #res = [[h*(n2-qx**2), -h*qx*qy, -h*qx*qz, n2*qx/s],
-    #        [-h*qx*qy, h*(n2-qy**2), -h*qy*qz, n2*qy/s],
-    #        [-h*qx*qz, -h*qy*qz, h*(n2-qz**2), n2*qz/s]]
-    #res = np.divide(res, n2**1.5)
+    res = [[h*(n2-qx**2), -h*qx*qy, -h*qx*qz, -n2*qx/s],
+            [-h*qx*qy, h*(n2-qy**2), -h*qy*qz, -n2*qy/s],
+            [-h*qx*qz, -h*qy*qz, h*(n2-qz**2), -n2*qz/s]]
+    res = np.divide(res, n2**1.5)
 
-    res = [[n2-qx**2,-qx*qy,-qx*qz,-n2*qx/(h*s)],
-           [-qx*qy,n2-qy**2,-qy*qz,-n2*qy/(h*s)],
-           [-qx*qz,-qy*qz,n2-qz**2,-n2*qz/(h*s)]]
-    res = np.multiply(res, h/n2**1.5)
-
-    #qw = np.clip(qw, -1.0, 1.0)
-    #h = np.arccos(qw)
-    #n2 = (qx**2 + qy**2 + qz**2)
-    #s  = np.sqrt(1 - qw**2)
-
-    #res = [
-    #        [-((qx**2*h)/(nv_1_5)) + 
-    #            h/nv,
-    #            -((qx*qy*h)/(nv_1_5)),
-    #            -((qx*qz*h)/(nv_1_5)),
-    #            -(qx/(s*nv))],
-    #        [-((qx*qy*h)/(nv_1_5)),
-    #            -((qy**2*h)/(nv_1_5)) + 
-    #            h/nv,
-    #            -((qy*qz*h)/(nv_1_5)),
-    #            -(qy/(s*nv))],
-    #        [-((qx*qz*h)/(nv_1_5)),
-    #            -((qy*qz*h)/(nv_1_5)),
-    #            -((qz**2*h)/(nv_1_5)) + 
-    #            h/nv,
-    #            -(qz/(s*nv))]]
     return np.asarray(res)
-
-# 
-# def dTdX(x):
-#     x = np.divide(x, np.linalg.norm(x))
-#     qxi,qyi,qzi,qwi = x
-# 
-#     # prevent minor numerical issues
-#     # qwi = np.clip(qwi, -1.0, 1.0)
-# 
-#     h = np.arccos(qwi)
-# 
-#     k = (1 - qwi**2)
-# 
-#     qvn = np.sqrt(qxi**2 + qyi**2 + qzi**2)
-# 
-#     if qvn < eps:
-#         # TODO : valid?
-#         return np.zeros((3,4), dtype=np.float64)
-#     else:
-#         d = k * qvn 
-#         qvn1_5 = qvn**1.5
-#         res = [
-#                 [((qyi**2 + qzi**2)*h)/qvn1_5,
-#                     ((qxi*qyi*h)/qvn1_5),
-#                     ((qxi*qzi*h)/qvn1_5),
-#                     (qxi/d)],
-#                 [((qxi*qyi*h)/qvn1_5),
-#                     ((qxi**2 + qzi**2)*h)/qvn1_5,
-#                     ((qyi*qzi*h)/qvn1_5),
-#                     (qyi/d)],
-#                 [((qxi*qzi*h)/qvn1_5),
-#                     ((qyi*qzi*h)/qvn1_5),
-#                     ((qxi**2 + qyi**2)*h)/qvn1_5,
-#                     (qzi/d)]]
-#         return np.asarray(res)
 
 def xadd_rel(x, dx, T=True):
     """ apply dx to x in relative frames """
@@ -379,11 +315,11 @@ def Bij(
     B = np.zeros((6,7), dtype=np.float64)
     B[:3,:3] = R01.T.dot(R0.T)
 
-    Q01 = dqq_l(qinv(dq))
-    Q12 = dqq_l(qinv(q0))
     eq = qmul(qinv(dq), qmul(qinv(q0),q1))
 
     # below two are pretty much equivalent
+    #Q01 = dqq_l(qinv(dq))
+    #Q12 = dqq_l(qinv(q0))
     #B[3:,3:] = dTdX(eq).dot(Q01.dot(Q12))
     B[3:,3:] = dTdX(eq).dot(dqedq2(q0, dq))
 
@@ -623,24 +559,45 @@ def xadd_abs2(x, dx, T=True):
 
 xadd2 = xadd_abs2
 def main():
+    #np.random.seed(1358)
     p0 = rt()
     p1 = rt()
 
     q0 = rq()
     q1 = rq()
 
-    print 'q0', q0
-    print 'q0-bf', Tinv(T(q0))
+    eq = rq(s=1.0) 
+    ep = rt(s=1.0)
 
-    p01_z = qxv(q0, p1-p0)
-    q01_z = qmul(qinv(q0), q1)
+    print p0
+    print p1
 
-    dp = qxv(q0, p1-p0) - p01_z
-    dq = qmul(qmul(qinv(q0),q1),qinv(q01_z))
-    print dp, dq
+    print q0
+    print q1
 
-    A = Aij(p0,p1,dp, q0,q1,dq)
-    B = Bij(p0,p1,dp, q0,q1,dq)
+    p01_z = qxv(q0, p1-p0) - ep
+    q01_z = qmul(eq, qmul(qinv(q0), q1))
+
+    print p01_z
+    print q01_z
+
+    print eij(p0,p1,p01_z, q0,q1, q01_z)
+
+    #print q0
+    #print q1
+
+    #print 'q0', q0
+    #print 'q0-bf', Tinv(T(q0))
+
+    #p01_z = qxv(q0, p1-p0)
+    #q01_z = qmul(qinv(q0), q1)
+
+    #dp = qxv(q0, p1-p0) - p01_z
+    #dq = qmul(qmul(qinv(q0),q1),qinv(q01_z))
+    #print dp, dq
+
+    #A = Aij(p0,p1,dp, q0,q1,dq)
+    #B = Bij(p0,p1,dp, q0,q1,dq)
 
 if __name__ == "__main__":
     main()

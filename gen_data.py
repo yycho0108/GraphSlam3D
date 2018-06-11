@@ -20,8 +20,8 @@ class DataGenerator(object):
         self._n_l = n_l
         self._scale = scale
 
-        self._v = 1.0
-        self._dwmax = np.deg2rad(1.0)
+        self._v = 2.0
+        self._dwmax = np.deg2rad(3.0)
 
     def reset(self):
         # initial pose

@@ -79,7 +79,8 @@ class GraphSlam3(object):
         # self._b[0]   += c * np.matmul(Aij.T, eij)
         # self._b[1]   += c * np.matmul(Bij.T, eij)
 
-        # H and b are organized as (X0, X1, L0, X1, ...)
+        # H and b are organized as (X0, X1, L0, L1, ...)
+        # where X0 is the previous position, and X1 is the current position.
         # Such that H[0,..] pertains to X0, and so on.
 
         # now with observations ...
@@ -92,7 +93,7 @@ class GraphSlam3(object):
                 # no need to compute deltas for initial guesses
                 # (will be zero) 
                 continue
-            Aij, Bij, eij = self.add_edge(z, z0, z1) # considered observed @ 1
+            Aij, Bij, eij = self.add_edge(z, z0, z1) # considered observed @ X1
             self._H[z0,z0] += c * np.matmul(Aij.T, Aij)
             self._H[z0,z1] += c * np.matmul(Aij.T, Bij)
             self._H[z1,z0] += c * np.matmul(Bij.T, Aij)
@@ -121,12 +122,12 @@ class GraphSlam3(object):
         dx = np.linalg.lstsq(H,-B, rcond=None)[0]
         dx = np.reshape(dx, [-1,6]) # [x1, l0, ... ln]
 
-        #for i in zis:
-        #    self._nodes[i] = qmath_np.xadd(self._nodes[i], dx[i-1])
+        for i in zis:
+            self._nodes[i] = qmath_np.xadd(self._nodes[i], dx[i-1])
 
-        for i in range(1, 2+self._n_l):
-            if i in self._nodes:
-                self._nodes[i] = qmath_np.xadd(self._nodes[i], dx[i-1])
+        #for i in range(1, 2+self._n_l):
+        #    if i in self._nodes:
+        #        self._nodes[i] = qmath_np.xadd(self._nodes[i], dx[i-1])
 
         ##dx2 = np.matmul(np.linalg.pinv(block(self._H)), -block(self._b))
         #dx2 = np.linalg.lstsq(block(self._H), -block(self._b), rcond=None)[0]
@@ -153,19 +154,18 @@ class GraphSlam3(object):
         x = [self._nodes[k] for k in sorted(self._nodes.keys())]
         return x
 
-    def run(self, zs, max_nodes, n_iter=10):
-        """ Offline version, works. """
-        H0 = np.zeros((6,6), dtype=np.float64)
-        b0 = np.zeros((6,1), dtype=np.float64)
+    def run(self, zs, max_nodes, n_iter=10, tol=1e-4):
+        """ Offline version """
+
+        n = max_nodes
 
         c = 1.0 # TODO : incorporate measurement uncertainties
 
         for it in range(n_iter): # iterate 10 times for convergence
-            H = [[H0.copy() for _ in range(max_nodes)] for _ in range(max_nodes)]
-            b = [b0.copy() for _ in range(max_nodes)]
+            H = np.zeros((n,n,6,6), dtype=np.float64)
+            b = np.zeros((n,1,6,1), dtype=np.float64)
 
             for (z0, z1, z) in zs:
-
                 if z1 not in self._nodes:
                     # add initial guess to node
                     self._nodes[z1] = qmath_np.xadd_rel(self._nodes[z0], z, T=False)
@@ -173,16 +173,16 @@ class GraphSlam3(object):
                 Aij, Bij, eij = self.add_edge(z, z0, z1)
 
                 # TODO : incorporate measurement uncertainties
-                H[z0][z0] += c * np.matmul(Aij.T, Aij)
-                H[z0][z1] += c * np.matmul(Aij.T, Bij)
-                H[z1][z0] += c * np.matmul(Bij.T, Aij)
-                H[z1][z1] += c * np.matmul(Bij.T, Bij)
+                H[z0,z0] += c * np.matmul(Aij.T, Aij)
+                H[z0,z1] += c * np.matmul(Aij.T, Bij)
+                H[z1,z0] += c * np.matmul(Bij.T, Aij)
+                H[z1,z1] += c * np.matmul(Bij.T, Bij)
                 b[z0]     += c * np.matmul(Aij.T, eij)
                 b[z1]     += c * np.matmul(Bij.T, eij)
 
-            H[0][0] += np.eye(6)
-            H = np.block(H)
-            b = np.concatenate(b, axis=0)
+            H[0,0] += np.eye(6)
+            H = block(H)
+            b = block(b)
 
             # solve ...
             dx = np.linalg.lstsq(H,-b, rcond=None)[0]
@@ -194,12 +194,8 @@ class GraphSlam3(object):
 
             # check convergence
             delta = np.mean(np.square(dx))
-            if delta < 1e-4:
+            if delta < tol:
                 break
 
         x = [self._nodes[k] for k in sorted(self._nodes.keys())]
         return x
-
-        # TODO : implement online version, maybe adapt Sebastian Thrun's code related to online slam
-        # where relationships regarding x_{i-1} can be folded into x_{i}
-
