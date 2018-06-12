@@ -38,12 +38,13 @@ def main():
     # configure parameters ...
 
     ## main params ##
-    n_t = 200 # timesteps
-    n_l = 4 # landmarks
-    p_obs = 0.5 # probability of landmark observation
-    seed = None # set the seed for repeatable experiments
+    n_t = 200         # number of timesteps
+    n_l = 4           # number of landmarks
+    p_obs = 0.5       # probability of landmark observation
+    seed = None       # set the seed here, for repeatable experiments
     map_scale = 100.0 # landmark/pose initialization
     marquadt  = 1.0   # marquadt smoothing; TODO : tune
+    n_ofl_it  = 100   # number of offline slam iterations
     #################
 
     ## noise params ##
@@ -54,6 +55,10 @@ def main():
     dz_p = s # landmark position noise
     dz_q = s # landmark orientation noise
     ##################
+
+    # fix the state for both offline and online slam
+    # TODO : use one data for offline/online
+    # rather than specifying DataGenerator(stepwise=True)
 
     np.random.seed(seed)
     rs = np.random.get_state() # random state
