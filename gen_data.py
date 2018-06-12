@@ -51,7 +51,6 @@ class DataGenerator(object):
             dz_q  = 1.0,
             p_obs = 1.0,
             stepwise=True,
-            seed = None
             ):
         """
         Returns The Following:
@@ -62,8 +61,6 @@ class DataGenerator(object):
         - Raw Landmark Observations
 
         """
-        if seed is not None:
-            np.random.seed(seed)
 
         p,q,w,zs = self.reset()
         v = self._v

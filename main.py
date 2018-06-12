@@ -34,31 +34,44 @@ class Print1(object):
         self._i += 1
 
 def main():
-    s = 0.1 # 1.0 = 1m = 57.2 deg.
-    dx_p = 2 * s
-    dx_q = 2 * s
-    dz_p = s
-    dz_q = s
-    p_obs = 0.5 # probability of observation
 
+    # configure parameters ...
+
+    ## main params ##
     n_t = 200 # timesteps
     n_l = 4 # landmarks
+    p_obs = 0.5 # probability of landmark observation
+    seed = None # set the seed for repeatable experiments
+    map_scale = 100.0 # landmark/pose initialization
+    marquadt  = 1.0   # marquadt smoothing; TODO : tune
+    #################
 
-    seed = np.random.randint(1e5)
-    gen  = DataGenerator(n_t=n_t, n_l=n_l, scale=100.0)
+    ## noise params ##
+    # when s= 1.0 = 1m = 57.2 deg.
+    s = 0.05
+    dx_p = s # motion position noise
+    dx_q = s # motion orientation noise
+    dz_p = s # landmark position noise
+    dz_q = s # landmark orientation noise
+    ##################
+
+    np.random.seed(seed)
+    rs = np.random.get_state() # random state
+
+    gen  = DataGenerator(n_t=n_t, n_l=n_l, scale=map_scale)
 
     np.set_printoptions(precision=4)
     with np.errstate(invalid='raise'):
         max_nodes = n_t + n_l
-        slam = GraphSlam3(n_l, l=1.0)
+        slam = GraphSlam3(n_l, l=marquadt)
 
         # V2 : Online Version
-        np.random.seed(seed)
+        np.random.set_state(rs)
         xs, zs, obs = gen(
                 dx_p,dx_q,dz_p,dz_q,
                 p_obs=p_obs,
-                stepwise=True,
-                seed=seed)
+                stepwise=True
+                )
 
         with Report('Ground Truth'):
             print 'final pose'
@@ -111,25 +124,25 @@ def main():
         # offline slam ...
         if n_t < 1000:
             # try not to do this when matrix will get too big
-            np.random.seed(seed)
+            np.random.set_state(rs)
             xs, zs, obs = gen(
                     dx_p,dx_q,dz_p,dz_q,
                     p_obs=p_obs,
-                    stepwise=False,
-                    seed=seed)
+                    stepwise=False
+                    )
 
             slam._nodes = {}
             slam.initialize(cat(*xs[0]))
-            xes_off = slam.run(obs, max_nodes=max_nodes, n_iter=50)
+            xes_ofl = slam.run(obs, max_nodes=max_nodes, n_iter=1)
 
             with Report('Offline'):
                 print 'final pose'
-                print xes_off[n_t-1]
+                print xes_ofl[n_t-1]
                 print 'landmarks'
                 print np.asarray(es[-n_l:])
 
             xesr_p, xesr_q = zip(*[x for x in xs[1:]])
-            xeso_p, xeso_q = zip(*[qmath_np.x2pq(x) for x in xes_off[1:n_t]])
+            xeso_p, xeso_q = zip(*[qmath_np.x2pq(x) for x in xes_ofl[1:n_t]])
             dp = np.subtract(xesr_p, xeso_p)
             dq = [qmath_np.T(qmath_np.qmul(q1, qmath_np.qinv(q0))) for (q1,q0) in zip(xesr_q, xeso_q)]
             delta  = np.concatenate([dp,dq], axis=-1)
@@ -137,7 +150,7 @@ def main():
 
             plt.plot(delta)
 
-        plt.legend(['raw','slam-on', 'slam-off'])
+        plt.legend(['raw','slam-onl', 'slam-ofl'])
         plt.title('Estimated Error Over Time')
         plt.show()
 

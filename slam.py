@@ -1,5 +1,7 @@
 """
 GraphSlam 3D Implementation.
+
+TODO : support global initialization (initial pose + landmark estimates)
 """
 import numpy as np
 from utils import qmath_np
@@ -25,23 +27,10 @@ class GraphSlam3(object):
 
     def add_edge(self, x, i0, i1):
         n = self._nodes
-
-        # numpy version
         p0, q0 = qmath_np.x2pq(n[i0])
         p1, q1 = qmath_np.x2pq(n[i1])
         dp, dq = qmath_np.x2pq(x)
-
         Aij, Bij, eij = qmath_np.Aij_Bij_eij(p0,p1,dp,q0,q1,dq)
-
-        #Aij = qmath_np.Aij(p0, p1, dp, q0, q1, dq)
-        #Bij = qmath_np.Bij(p0, p1, dp, q0, q1, dq)
-        #eij = qmath_np.eij(p0, p1, dp, q0, q1, dq)
-
-        # convert to np to handle either cases
-        Aij = np.array(Aij).astype(np.float64)
-        Bij = np.array(Bij).astype(np.float64)
-        eij = np.array(eij).astype(np.float64)
-
         return Aij, Bij, eij
 
     def initialize(self, x0):
@@ -50,7 +39,6 @@ class GraphSlam3(object):
         self._b = np.zeros((n,1,6,1), dtype=np.float64)
         self._H[0,0] = np.eye(6)
         self._nodes[0] = x0
-
         # TODO : Are the below initializations necessary?
         #p, q = qmath_np.x2pq(x0)
         #x = np.concatenate([p,qmath_np.T(q)], axis=-1)
@@ -59,7 +47,9 @@ class GraphSlam3(object):
     def step(self, x=None, zs=None):
         """ Online Version """
         c = 1.0
-        omega = np.diag([1,1,1,1,1,1]) # try to weight angular errors more? let us see...
+        # TODO : try to incorporate covariances
+        # TODO : try to weight angular error more?
+        omega = np.diag([1,1,1,1,1,1])
 
         # " expand "
         self._H[1,:] = 0.0
@@ -72,10 +62,8 @@ class GraphSlam3(object):
         if x is not None:
             zis.append(1)
             self._nodes[1] = qmath_np.xadd_rel(self._nodes[0], x, T=False)
-
         # unnecessary (redundant) since error is already based on
         # the above specified relative motion
-        # Aij, Bij, eij = self.add_edge(x, 0, 1)
         # self._H[0,0] += c * np.matmul(Aij.T, Aij)
         # self._H[0,1] += c * np.matmul(Aij.T, Bij)
         # self._H[1,0] += c * np.matmul(Bij.T, Aij)
@@ -122,8 +110,6 @@ class GraphSlam3(object):
         B = B10 - np.matmul(AtBi, B00)
 
         mI = self._lambda * np.eye(*H.shape) # marquardt damping
-        # TODO : expose lambda ^^ for configuration
-
         #dx = np.matmul(np.linalg.pinv(H), -B)
         dx = np.linalg.lstsq(H+mI,-B, rcond=None)[0]
         dx = np.reshape(dx, [-1,6]) # [x1, l0, ... ln]
@@ -193,9 +179,9 @@ class GraphSlam3(object):
             # solve ...
 
             # marquardt
-            mI = self._lambda * np.eye(6*max_nodes, 6*max_nodes)
-
-            dx = np.linalg.lstsq(H+mI,-b, rcond=None)[0]
+            #mI = self._lambda * np.eye(*H.shape)
+            #dx = np.linalg.lstsq(H+mI,-b, rcond=None)[0]
+            dx = np.linalg.lstsq(H,-b, rcond=None)[0]
             dx = np.reshape(dx, [-1,6])
 
             # update
