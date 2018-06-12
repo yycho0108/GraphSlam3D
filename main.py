@@ -133,7 +133,7 @@ def main():
 
             slam._nodes = {}
             slam.initialize(cat(*xs[0]))
-            xes_ofl = slam.run(obs, max_nodes=max_nodes, n_iter=1)
+            xes_ofl = slam.run(obs, max_nodes=max_nodes, n_iter=100)
 
             with Report('Offline'):
                 print 'final pose'
