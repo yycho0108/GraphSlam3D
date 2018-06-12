@@ -39,12 +39,12 @@ def main():
     dx_q = 2 * s
     dz_p = s
     dz_q = s
-    p_obs = 0.25 # probability of observation
+    p_obs = 0.1 # probability of observation
 
-    n_t = 100 # timesteps
+    n_t = 500 # timesteps
     n_l = 4 # landmarks
 
-    seed = np.random.randint(1e5)
+    seed = 155#np.random.randint(1e5)
     gen  = DataGenerator(n_t=n_t, n_l=n_l, scale=100.0)
 
     np.set_printoptions(precision=4)

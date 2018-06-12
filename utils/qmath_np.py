@@ -5,7 +5,7 @@ eps = np.finfo(float).eps
 
 def qinv(q):
     qx,qy,qz,qw = q
-    return np.asarray([-qx,-qy,-qz,qw])
+    return np.asarray([-qx,-qy,-qz,qw], dtype=np.float64)
 
 def qmul(q1, q0):
     return tx.quaternion_multiply(q1,q0)
@@ -106,7 +106,7 @@ else:
                 [-h*qx*qz, -h*qy*qz, h*(n2-qz**2), -n2*qz/s]]
         res = np.divide(res, n2**1.5)
     
-        return np.asarray(res)
+        return np.asarray(res, dtype=np.float64)
     
     def M(p,q):
         """
@@ -251,7 +251,7 @@ def q2R2(q):
     q = q[0]
     R = np.asarray([
         [np.cos(q), -np.sin(q)],
-        [np.sin(q), np.cos(q)]])
+        [np.sin(q), np.cos(q)]], dtype=np.float64)
     return R
 
 def rt2(s=1.0):

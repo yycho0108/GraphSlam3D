@@ -10,7 +10,7 @@ mode = 'abs'
 
 def qinv(q):
     qx,qy,qz,qw = q
-    return np.asarray([-qx,-qy,-qz,qw])
+    return np.asarray([-qx,-qy,-qz,qw], dtype=np.float64)
 
 def qmul(q1, q0):
     return tx.quaternion_multiply(q1,q0)
@@ -131,7 +131,7 @@ def dTdX(x):
             [-h*qx*qz, -h*qy*qz, h*(n2-qz**2), -n2*qz/s]]
     res = np.divide(res, n2**1.5)
 
-    return np.asarray(res)
+    return np.asarray(res, dtype=np.float64)
 
 def xadd_rel(x, dx, T=True):
     """ apply dx to x in relative frames """
@@ -203,7 +203,7 @@ def dRqidq(q, p1, p0):
     res = [[[0,-y4,-z4,0],[y2,x2,w2,z2],[z2,-w2,x2,-y2]],
            [[y2,x2,-w2,-z2],[-x4,0,-z4,0],[w2,z2,y2,x2]],
            [[z2,w2,x2,y2],[-w2,z2,y2,-x2],[-x4,-y4,0,0]]]
-    res = np.asarray(res)
+    res = np.asarray(res, dtype=np.float64)
     # == (3,3,4)
     dp = p1 - p0
     return np.einsum('ijk,j->ik', res, dp)
@@ -216,7 +216,7 @@ def dqq_l(q):
            [z,w,-x,y],
            [-y,x,w,z],
            [-x,-y,-z,w]]
-    return np.asarray(res)
+    return np.asarray(res, dtype=np.float64)
 
 def dqiq_r(q):
     # == d(q0^{-1}.q1)/d(q0)
@@ -225,7 +225,7 @@ def dqiq_r(q):
             [-z,w,x,-y],
             [y,-x,w,-z],
             [-x,-y,-z,-w]]
-    return np.asarray(res)
+    return np.asarray(res, dtype=np.float64)
 
 def dqedq1(q2, qe):
     qx2,qy2,qz2,qw2 = q2
@@ -244,7 +244,7 @@ def dqedq1(q2, qe):
             [qwe*qx2 - qw2*qxe + qye*qz2 - qy2*qze,qwe*qy2 - qw2*qye - qxe*qz2 + qx2*qze,
                 qxe*qy2 - qx2*qye + qwe*qz2 - qw2*qze,
                 qw2*qwe + qx2*qxe + qy2*qye + qz2*qze]]
-    return np.asarray(res)
+    return np.asarray(res, dtype=np.float64)
 
 def dqedq2(q1, qe):
     qx1,qy1,qz1,qw1 = q1
@@ -259,7 +259,7 @@ def dqedq2(q1, qe):
             qxe*qy1 - qx1*qye - qwe*qz1 - qw1*qze],
         [qwe*qx1 + qw1*qxe - qye*qz1 + qy1*qze,qwe*qy1 + qw1*qye + qxe*qz1 - qx1*qze,
             -(qxe*qy1) + qx1*qye + qwe*qz1 + qw1*qze,qw1*qwe - qx1*qxe - qy1*qye - qz1*qze]]
-    return np.asarray(res)
+    return np.asarray(res, dtype=np.float64)
 
 def Aij(p0,p1,dp, q0,q1,dq):
     # == d(eij) / d(xi)
@@ -472,7 +472,7 @@ def q2R2(q):
     q = q[0]
     R = np.asarray([
         [np.cos(q), -np.sin(q)],
-        [np.sin(q), np.cos(q)]])
+        [np.sin(q), np.cos(q)]], dtype=np.float64)
     return R
 
 def rt2(s=1.0):

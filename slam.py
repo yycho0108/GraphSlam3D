@@ -58,6 +58,7 @@ class GraphSlam3(object):
     def step(self, x=None, zs=None):
         """ Online Version """
         c = 1.0
+        omega = np.diag([1,1,1,1,1,1]) # try to weight angular errors more? let us see...
 
         # " expand "
         self._H[1,:] = 0.0
@@ -96,12 +97,12 @@ class GraphSlam3(object):
                 # (will be zero) 
                 continue
             Aij, Bij, eij = self.add_edge(z, z0, z1) # considered observed @ X1
-            self._H[z0,z0] += c * np.matmul(Aij.T, Aij)
-            self._H[z0,z1] += c * np.matmul(Aij.T, Bij)
-            self._H[z1,z0] += c * np.matmul(Bij.T, Aij)
-            self._H[z1,z1] += c * np.matmul(Bij.T, Bij)
-            self._b[z0]   += c * np.matmul(Aij.T, eij)
-            self._b[z1]   += c * np.matmul(Bij.T, eij)
+            self._H[z0,z0] += Aij.T.dot(omega).dot(Aij)# c * np.matmul(Aij.T, Aij)
+            self._H[z0,z1] += Aij.T.dot(omega).dot(Bij)#c * np.matmul(Aij.T, Bij)
+            self._H[z1,z0] += Bij.T.dot(omega).dot(Aij)#c * np.matmul(Bij.T, Aij)
+            self._H[z1,z1] += Bij.T.dot(omega).dot(Bij)#c * np.matmul(Bij.T, Bij)
+            self._b[z0]   += Aij.T.dot(omega).dot(eij)#c * np.matmul(Aij.T, eij)
+            self._b[z1]   += Bij.T.dot(omega).dot(eij)#c * np.matmul(Bij.T, eij)
 
         H00 = block(self._H[:1,:1])
         H01 = block(self._H[:1,1:])
@@ -119,7 +120,7 @@ class GraphSlam3(object):
         H = H11 - np.matmul(AtBi, H01)
         B = B10 - np.matmul(AtBi, B00)
 
-        mI = 1.0 * np.eye(*H.shape) # marquadt damping
+        mI = 10.0 * np.eye(*H.shape) # marquardt damping
         # TODO : expose lambda ^^ for configuration
 
         #dx = np.matmul(np.linalg.pinv(H), -B)
@@ -197,7 +198,8 @@ class GraphSlam3(object):
 
             # update
             for i in range(max_nodes):
-                self._nodes[i] = qmath_np.xadd_abs(self._nodes[i], dx[i])
+                if i in self._nodes:
+                    self._nodes[i] = qmath_np.xadd_abs(self._nodes[i], dx[i])
 
             # check convergence
             delta = np.mean(np.square(dx))
