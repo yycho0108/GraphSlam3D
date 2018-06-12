@@ -15,13 +15,17 @@ def cat(a,b):
 class DataGenerator(object):
     """ Note : Is not actually a python generator. """
 
-    def __init__(self, n_t, n_l, scale=50.0):
+    def __init__(self, n_t, n_l,
+            scale=50.0,
+            v = 2.0,
+            dw = np.deg2rad(3.0)
+            ):
         self._n_t = n_t
         self._n_l = n_l
         self._scale = scale
 
-        self._v = 2.0
-        self._dwmax = np.deg2rad(3.0)
+        self._v = v
+        self._dwmax = dw
 
     def reset(self):
         # initial pose

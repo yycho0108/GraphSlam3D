@@ -18,9 +18,10 @@ def unblock(ar, nknl):
     return ar.reshape(ni,nk,nj,nl).swapaxes(1,2)
 
 class GraphSlam3(object):
-    def __init__(self, n_l):
+    def __init__(self, n_l, l=0.0):
         self._nodes = {}
         self._n_l = n_l
+        self._lambda = l
 
     def add_edge(self, x, i0, i1):
         n = self._nodes
@@ -120,7 +121,7 @@ class GraphSlam3(object):
         H = H11 - np.matmul(AtBi, H01)
         B = B10 - np.matmul(AtBi, B00)
 
-        mI = 10.0 * np.eye(*H.shape) # marquardt damping
+        mI = self._lambda * np.eye(*H.shape) # marquardt damping
         # TODO : expose lambda ^^ for configuration
 
         #dx = np.matmul(np.linalg.pinv(H), -B)
@@ -190,10 +191,11 @@ class GraphSlam3(object):
             b = block(b)
 
             # solve ...
-            I = np.eye(6*max_nodes, 6*max_nodes)
-            ld = 0.0
 
-            dx = np.linalg.lstsq(H+I*ld,-b, rcond=None)[0]
+            # marquardt
+            mI = self._lambda * np.eye(6*max_nodes, 6*max_nodes)
+
+            dx = np.linalg.lstsq(H+mI,-b, rcond=None)[0]
             dx = np.reshape(dx, [-1,6])
 
             # update

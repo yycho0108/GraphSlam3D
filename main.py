@@ -34,23 +34,23 @@ class Print1(object):
         self._i += 1
 
 def main():
-    s = 0.05 # 1.0 = 1m = 57.2 deg.
+    s = 0.1 # 1.0 = 1m = 57.2 deg.
     dx_p = 2 * s
     dx_q = 2 * s
     dz_p = s
     dz_q = s
-    p_obs = 0.1 # probability of observation
+    p_obs = 0.5 # probability of observation
 
-    n_t = 500 # timesteps
+    n_t = 200 # timesteps
     n_l = 4 # landmarks
 
-    seed = 155#np.random.randint(1e5)
+    seed = np.random.randint(1e5)
     gen  = DataGenerator(n_t=n_t, n_l=n_l, scale=100.0)
 
     np.set_printoptions(precision=4)
     with np.errstate(invalid='raise'):
         max_nodes = n_t + n_l
-        slam = GraphSlam3(n_l)
+        slam = GraphSlam3(n_l, l=1.0)
 
         # V2 : Online Version
         np.random.seed(seed)
@@ -120,7 +120,7 @@ def main():
 
             slam._nodes = {}
             slam.initialize(cat(*xs[0]))
-            xes_off = slam.run(obs, max_nodes=max_nodes, n_iter=1)
+            xes_off = slam.run(obs, max_nodes=max_nodes, n_iter=50)
 
             with Report('Offline'):
                 print 'final pose'
