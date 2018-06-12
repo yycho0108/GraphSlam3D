@@ -44,6 +44,15 @@ class GraphSlam3(object):
         #x = np.concatenate([p,qmath_np.T(q)], axis=-1)
         #self._b[0,0,:,0] = x
 
+    def initialize_n(self, x0s):
+        """ Initialize all nodes with estimates """
+        for (xi, x) in x0s:
+            self._nodes[xi] = x
+        # TODO : implement
+        # TODO : separate out online / offline classes
+        # with shared base that implements add_edge() / add-node() / initialize()
+        # TODO : consider folding initialize_n into initialize by checking if x0 is iterable in [n,7]
+
     def step(self, x=None, zs=None):
         """ Online Version """
         c = 1.0

@@ -44,18 +44,13 @@ if mode == 'v1':
     def dTdX(x):
         return np.eye(3,4, dtype=np.float64)
 
-    def dqnddq(q):
-        x,y,z,w = q
-        res = [[w,z,-y],[-z,w,x],[y,-x,w],[-x,-y,-z]]
-        return np.asarray(res, dtype=np.float64)
-
     def M(p, q):
         """
         Manifold projection  {d(x (+) dx) / dx}| dx==0
         """
         res = np.zeros((7,6), dtype=np.float64)
         res[:3,:3] = np.eye(3)
-        res[3:,3:] = dqnddq(q)
+        res[3:,3:] = qr2Q(q).dot(np.eye(4,3))
         return res
 else:
     # V2 : T(q) = log(q)
