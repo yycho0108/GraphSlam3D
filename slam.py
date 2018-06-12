@@ -127,7 +127,7 @@ class GraphSlam3(object):
         dx = np.reshape(dx, [-1,6]) # [x1, l0, ... ln]
 
         for i in zis:
-            self._nodes[i] = qmath_np.xadd(self._nodes[i], dx[i-1])
+            self._nodes[i] = qmath_np.xadd_abs(self._nodes[i], dx[i-1])
 
         #for i in range(1, 2+self._n_l):
         #    if i in self._nodes:
@@ -197,7 +197,7 @@ class GraphSlam3(object):
 
             # update
             for i in range(max_nodes):
-                self._nodes[i] = qmath_np.xadd(self._nodes[i], dx[i])
+                self._nodes[i] = qmath_np.xadd_abs(self._nodes[i], dx[i])
 
             # check convergence
             delta = np.mean(np.square(dx))
