@@ -70,6 +70,15 @@ class DataGenerator(object):
         obs = [] # Raw Landmark Observations
         # TODO : configurable motion parameters
 
+        # create information matrices ...
+        cov_x = np.square([dx_p,dx_p,dx_p,dx_q,dx_q,dx_q])
+        cov_x = np.divide(1.0, cov_x)
+        omega_x = np.diag(cov_x)
+
+        cov_z = np.square([dz_p,dz_p,dz_p,dz_q,dz_q,dz_q])
+        cov_z = np.divide(1.0, cov_z)
+        omega_z = np.diag(cov_z)
+
         for i in range(1, self._n_t):
             xs.append( (p.copy(), q.copy()) )
 
@@ -87,15 +96,14 @@ class DataGenerator(object):
             # noisy motion observation
             p1 = p + dp_n
             q1 = qmul(w_n, q)
-
             dpr, dqr = qmath_np.xrel(p, q, p1, q1)
 
-            if not stepwise:
-                obs.append([i-1, i, cat(dpr,dqr)])
-
-            # ~= xadd_abs
+            # == xadd_abs
             p = p + dp
             q = qmul(w, q)
+
+            if not stepwise:
+                obs.append([i-1, i, cat(dpr,dqr), omega_x])
 
             obs_z = []
             for zi, (zp,zq) in enumerate(zs):
@@ -107,12 +115,12 @@ class DataGenerator(object):
                 zpr, zqr = qmath_np.xrel(p, q, zp_n, zq_n)
 
                 if stepwise:
-                    obs_z.append([1, 2+zi, cat(zpr,zqr)])
+                    obs_z.append([1, 2+zi, cat(zpr,zqr), omega_z])
                 else:
-                    obs.append([i, self._n_t+zi, cat(zpr,zqr)])
+                    obs.append([i, self._n_t+zi, cat(zpr,zqr), omega_z])
 
             if stepwise:
-                obs_i = [cat(dpr,dqr), obs_z]
+                obs_i = [cat(dpr,dqr), omega_x, obs_z]
                 obs.append(obs_i)
 
         xs.append((p.copy(), q.copy()))

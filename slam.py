@@ -53,12 +53,8 @@ class GraphSlam3(object):
         # with shared base that implements add_edge() / add-node() / initialize()
         # TODO : consider folding initialize_n into initialize by checking if x0 is iterable in [n,7]
 
-    def step(self, x=None, zs=None):
+    def step(self, x=None, ox=None, zs=None):
         """ Online Version """
-        c = 1.0
-        # TODO : try to incorporate covariances
-        # TODO : try to weight angular error more?
-        omega = np.diag([1,1,1,1,1,1])
 
         # " expand "
         self._H[1,:] = 0.0
@@ -69,23 +65,18 @@ class GraphSlam3(object):
 
         # apply motion updates first
         if x is not None:
-            zis.append(1)
             self._nodes[1] = qmath_np.xadd_rel(self._nodes[0], x, T=False)
-        # unnecessary (redundant) since error is already based on
-        # the above specified relative motion
-        # self._H[0,0] += c * np.matmul(Aij.T, Aij)
-        # self._H[0,1] += c * np.matmul(Aij.T, Bij)
-        # self._H[1,0] += c * np.matmul(Bij.T, Aij)
-        # self._H[1,1] += c * np.matmul(Bij.T, Bij)
-        # self._b[0]   += c * np.matmul(Aij.T, eij)
-        # self._b[1]   += c * np.matmul(Bij.T, eij)
+            zis.append(1)
+            #zs.append([0, 1, x, ox])
+            # TODO : incorporate omega_x somehow
+            # simply adding x0->x1 to zs did not work
 
         # H and b are organized as (X0, X1, L0, L1, ...)
         # where X0 is the previous position, and X1 is the current position.
         # Such that H[0,..] pertains to X0, and so on.
 
         # now with observations ...
-        for (z0, z1, z) in zs:
+        for (z0, z1, z, o) in zs:
             zis.append(z1)
             if z1 not in self._nodes:
                 # initial guess
@@ -94,13 +85,13 @@ class GraphSlam3(object):
                 # no need to compute deltas for initial guesses
                 # (will be zero) 
                 continue
-            Aij, Bij, eij = self.add_edge(z, z0, z1) # considered observed @ X1
-            self._H[z0,z0] += Aij.T.dot(omega).dot(Aij)# c * np.matmul(Aij.T, Aij)
-            self._H[z0,z1] += Aij.T.dot(omega).dot(Bij)#c * np.matmul(Aij.T, Bij)
-            self._H[z1,z0] += Bij.T.dot(omega).dot(Aij)#c * np.matmul(Bij.T, Aij)
-            self._H[z1,z1] += Bij.T.dot(omega).dot(Bij)#c * np.matmul(Bij.T, Bij)
-            self._b[z0]   += Aij.T.dot(omega).dot(eij)#c * np.matmul(Aij.T, eij)
-            self._b[z1]   += Bij.T.dot(omega).dot(eij)#c * np.matmul(Bij.T, eij)
+            Aij, Bij, eij = self.add_edge(z, z0, z1)
+            self._H[z0,z0] += Aij.T.dot(o).dot(Aij)
+            self._H[z0,z1] += Aij.T.dot(o).dot(Bij)
+            self._H[z1,z0] += Bij.T.dot(o).dot(Aij)
+            self._H[z1,z1] += Bij.T.dot(o).dot(Bij)
+            self._b[z0]   += Aij.T.dot(o).dot(eij)
+            self._b[z1]   += Bij.T.dot(o).dot(eij)
 
         H00 = block(self._H[:1,:1])
         H01 = block(self._H[:1,1:])
@@ -155,31 +146,28 @@ class GraphSlam3(object):
         x = [self._nodes[k] for k in sorted(self._nodes.keys())]
         return x
 
-    def run(self, zs, max_nodes, n_iter=10, tol=1e-4):
+    def run(self, zs, max_nodes, n_iter=10, tol=1e-4, debug=False):
         """ Offline version """
 
         n = max_nodes
-
-        c = 1.0 # TODO : incorporate measurement uncertainties
 
         for it in range(n_iter): # iterate 10 times for convergence
             H = np.zeros((n,n,6,6), dtype=np.float64)
             b = np.zeros((n,1,6,1), dtype=np.float64)
 
-            for (z0, z1, z) in zs:
+            for (z0, z1, z, o) in zs:
                 if z1 not in self._nodes:
                     # add initial guess to node
                     self._nodes[z1] = qmath_np.xadd_rel(self._nodes[z0], z, T=False)
 
                 Aij, Bij, eij = self.add_edge(z, z0, z1)
+                H[z0,z0] += Aij.T.dot(o).dot(Aij)
+                H[z0,z1] += Aij.T.dot(o).dot(Bij)
+                H[z1,z0] += Bij.T.dot(o).dot(Aij)
+                H[z1,z1] += Bij.T.dot(o).dot(Bij)
+                b[z0]    += Aij.T.dot(o).dot(eij)
+                b[z1]    += Bij.T.dot(o).dot(eij)
 
-                # TODO : incorporate measurement uncertainties
-                H[z0,z0] += c * np.matmul(Aij.T, Aij)
-                H[z0,z1] += c * np.matmul(Aij.T, Bij)
-                H[z1,z0] += c * np.matmul(Bij.T, Aij)
-                H[z1,z1] += c * np.matmul(Bij.T, Bij)
-                b[z0]     += c * np.matmul(Aij.T, eij)
-                b[z1]     += c * np.matmul(Bij.T, eij)
 
             H[0,0] += np.eye(6)
             H = block(H)
@@ -187,9 +175,10 @@ class GraphSlam3(object):
 
             # solve ...
 
-            # marquardt
+            # marquardt - somehow makes it worse or something
             #mI = self._lambda * np.eye(*H.shape)
             #dx = np.linalg.lstsq(H+mI,-b, rcond=None)[0]
+
             dx = np.linalg.lstsq(H,-b, rcond=None)[0]
             dx = np.reshape(dx, [-1,6])
 
@@ -200,6 +189,8 @@ class GraphSlam3(object):
 
             # check convergence
             delta = np.mean(np.square(dx))
+            if debug:
+                print('delta', delta)
             if delta < tol:
                 break
 
