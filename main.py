@@ -24,46 +24,35 @@ class Report():
         print '-' * 8 + ' '*len(self._title) + '-' * 8
         print ''
 
-class Print1(object):
-    """ Print something once at iteration n. """
-    def __init__(self, n=0):
-        self._i = 0
-        self._n = n
-    def __call__(self, *args):
-        if (self._i == self._n):
-            print(args)
-        self._i += 1
-
-import rospy
-from geometry_msgs.msg import PoseArray
-from utils.cvt_pose import pose, msg1, msgn
-
-def subsample_graph(nodes, edges, n):
-    idx = np.random.choice(len(nodes), n, replace=False).tolist()
-    idx = sorted(idx)
-
-    nodes_2 = []
-    edges_2 = []
-
-    for n in nodes:
-        if not n[0] in idx:
-            continue
-        nodes_2.append([idx.index(n[0]), n[1]])
-
-    mx = 0
-    for e in edges:
-        if not (e[0] in idx and e[1] in idx):
-            continue
-        e0 = idx.index(e[0])
-        e1 = idx.index(e[1])
-        mx = max(e0, mx)
-        mx = max(e1, mx)
-        edges_2.append([e0, e1, e[2], e[3]])
-
-    edges_2 = sorted(edges_2, key=lambda e:e[0])
-
-    return nodes_2, edges_2
-
+#import rospy
+#from geometry_msgs.msg import PoseArray
+#from utils.cvt_pose import pose, msg1, msgn
+#
+#def subsample_graph(nodes, edges, n):
+#    idx = np.random.choice(len(nodes), n, replace=False).tolist()
+#    idx = sorted(idx)
+#
+#    nodes_2 = []
+#    edges_2 = []
+#
+#    for n in nodes:
+#        if not n[0] in idx:
+#            continue
+#        nodes_2.append([idx.index(n[0]), n[1]])
+#
+#    mx = 0
+#    for e in edges:
+#        if not (e[0] in idx and e[1] in idx):
+#            continue
+#        e0 = idx.index(e[0])
+#        e1 = idx.index(e[1])
+#        mx = max(e0, mx)
+#        mx = max(e1, mx)
+#        edges_2.append([e0, e1, e[2], e[3]])
+#
+#    edges_2 = sorted(edges_2, key=lambda e:e[0])
+#
+#    return nodes_2, edges_2
 #def g2o_main():
 #    rospy.init_node('poseviz', anonymous=True)
 #    pub_x0 = rospy.Publisher('node0', PoseArray, queue_size=10)
@@ -201,7 +190,7 @@ def main():
 
             slam._nodes = {}
             slam.initialize(cat(*xs[0]))
-            xes_ofl = slam.run(obs, max_nodes=max_nodes, n_iter=10)
+            xes_ofl = slam.run(obs, max_nodes=max_nodes, n_iter=n_ofl_it)
 
             with Report('Offline'):
                 print 'final pose'
